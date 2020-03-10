@@ -132,3 +132,9 @@ dmypy.json
 # PyCharm
 .idea/
 
+#From SFR project
+warp-ctc
+pykaldi
+*.pyc
+*.png
+*.jpg
