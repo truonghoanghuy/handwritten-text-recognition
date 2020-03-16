@@ -11,6 +11,7 @@ import javafx.scene.control.TextArea;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import main.controller.BrowserController;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -42,7 +43,7 @@ public class App extends javafx.application.Application {
 
     @Override
     public void start(Stage browserStage) throws Exception {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("browser.fxml"));
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("view/browser.fxml"));
         Parent loader = fxmlLoader.load();
         BrowserController browserController = fxmlLoader.getController();
         browserController.setOwnerStage(browserStage);

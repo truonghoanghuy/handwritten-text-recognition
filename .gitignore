@@ -139,3 +139,5 @@ pykaldi
 *.png
 *.jpg
 /text-region-labeling/out/
+text-region-labeling/.idea/
+english_data/

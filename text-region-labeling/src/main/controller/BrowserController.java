@@ -1,4 +1,4 @@
-package main;
+package main.controller;
 
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -10,9 +10,13 @@ import javafx.scene.image.Image;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
+import main.App;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 public class BrowserController {
@@ -59,17 +63,24 @@ public class BrowserController {
         try {
 
             Image image = new Image(file.toURI().toURL().toExternalForm());
-            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("viewer.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("../view/viewer.fxml"));
             Parent loader = fxmlLoader.load();
+
+            String nameTxt = file.getName();
+            nameTxt = nameTxt.substring(0, nameTxt.lastIndexOf('.')) + ".txt";
+            String txt = new String(Files.readAllBytes(Paths.get(file.getParent() + nameTxt)));
+
             ViewerController viewerController = fxmlLoader.getController();
             viewerController.setOriginalImage(image, file.getName());
             viewerController.setBrowserController(this);
+            viewerController.createXmlFileWriter(file.getName(), (int) image.getWidth(), (int) image.getHeight());
+            viewerController.setGroundTruthTxt(txt);
 
             Stage viewerStage = new Stage();
             viewerStage.setTitle("Viewer");
             viewerStage.setMinHeight(300);
             viewerStage.setMinWidth(400);
-            viewerStage.setScene(new Scene(loader, 600, 600));
+            viewerStage.setScene(new Scene(loader, 800, 600));
             viewerStage.show();
 
         } catch (Exception e) {

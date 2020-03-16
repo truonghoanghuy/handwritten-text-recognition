@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.VBox?>
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
-      fx:controller="main.BrowserController"
+      fx:controller="main.controller.BrowserController"
       spacing="20" style="-fx-padding: 20" alignment="CENTER">
     <HBox alignment="CENTER" spacing="10">
         <Label text="Output text to:" prefWidth="80"/>

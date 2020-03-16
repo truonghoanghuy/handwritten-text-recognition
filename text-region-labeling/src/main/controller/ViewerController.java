@@ -1,8 +1,11 @@
-package main;
+package main.controller;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.Event;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.control.*;
@@ -13,7 +16,11 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Pair;
+import main.App;
+import main.controller.BrowserController;
+import main.utils.XmlFileWriter;
 
 import javax.annotation.PostConstruct;
 import java.awt.*;
@@ -34,12 +41,25 @@ public class ViewerController {
     private Button writeBtn;
     @FXML
     private CheckBox previewCheckBox;
+    @FXML
+    private Button regionBtn;
+    @FXML
+    private Button boundaryLineBtn;
+    @FXML
+    private Button baseLineBtn;
+    @FXML
+    private Button textLineBtn;
 
     private LinkedList<Pair<Integer, Integer>> trace = new LinkedList<>();
     private LinkedList<Pair<Integer, Integer>> redoStack = new LinkedList<>();
+    private XmlFileWriter xmlFileWriter;
     private Image originalImage;
     private String originalImageFileName;
     private BrowserController browserController;
+    private StringBuilder groundTruthTxt = null;
+    private String tempBoundary = null;
+    private String tempBaseLine = null;
+
 
     @PostConstruct
     public void initialize() {
@@ -66,6 +86,10 @@ public class ViewerController {
             previewCheckBox.fire();
         }
         writeBtn.setOnAction(event -> handleWriteAction());
+        regionBtn.setOnMouseClicked(this::handleAddTextRegionAction);
+        boundaryLineBtn.setOnMouseClicked(this::handleAddBoundaryLineAction);
+        baseLineBtn.setOnMouseClicked(this::handleAddBaseLineAction);
+        textLineBtn.setOnMouseClicked(this::handleAddTextLineAction);
     }
 
     private void handleWriteAction() {
@@ -110,6 +134,54 @@ public class ViewerController {
         trace.push(current);
         updateOutput();
         trace.poll();
+    }
+
+    private void handleAddTextRegionAction(MouseEvent event) {
+        if (!event.isPrimaryButtonDown()) return;
+        if (outputField.getText().isEmpty()) return;
+
+        xmlFileWriter.addTextRegion(outputField.getText());
+    }
+
+    private void handleAddBoundaryLineAction(MouseEvent event) {
+        if (!event.isPrimaryButtonDown()) return;
+        if (outputField.getText().isEmpty()) return;
+
+        tempBoundary = outputField.getText();
+    }
+
+    private void handleAddBaseLineAction (MouseEvent event) {
+        if (!event.isPrimaryButtonDown()) return;
+        if (outputField.getText().isEmpty()) return;
+
+        tempBaseLine = outputField.getText();
+    }
+
+    private void handleAddTextLineAction (MouseEvent event) {
+        //if (!event.isPrimaryButtonDown()) return;
+        //if (tempBoundary == null || tempBaseLine == null) return;
+
+        openTextDialog();
+    }
+
+    private void openTextDialog() {
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("../view/GroundTruthTextSelectionDialog.fxml"));
+            Parent loader = fxmlLoader.load();
+            GroundTruthTextSelectionController dialogController = fxmlLoader.getController();
+            StringBuilder outputTxt = new StringBuilder();
+            dialogController.setProperty(outputTxt, groundTruthTxt);
+
+            Stage viewerStage = new Stage();
+            viewerStage.setTitle("Text Selection Dialog");
+            viewerStage.setMinHeight(350);
+            viewerStage.setMinWidth(480);
+            viewerStage.setScene(new Scene(loader, 550, 430));
+            viewerStage.show();
+
+        } catch (Exception e) {
+            App.showExceptionAlert(e);
+        }
     }
 
     private void undo() {
@@ -179,5 +251,13 @@ public class ViewerController {
 
     public void setBrowserController(BrowserController browserController) {
         this.browserController = browserController;
+    }
+
+    public void createXmlFileWriter(String fileName, int imageWidth, int imageHeight) {
+        xmlFileWriter = new XmlFileWriter(fileName, imageWidth, imageHeight);
+    }
+
+    public void setGroundTruthTxt(String txt) {
+        groundTruthTxt = new StringBuilder(txt);
     }
 }
