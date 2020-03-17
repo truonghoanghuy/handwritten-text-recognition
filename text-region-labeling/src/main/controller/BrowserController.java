@@ -7,6 +7,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
@@ -23,6 +24,7 @@ public class BrowserController {
 
     private static ExtensionFilter textFilter = new ExtensionFilter("Text files", "*.txt");
     private static ExtensionFilter imageFilter = new ExtensionFilter("Image files", "*.jpg", "*.png");
+    private static ExtensionFilter xmlFilter = new ExtensionFilter("XML file", "*.xml");
 
     @FXML
     public Button browseImageBtn;
@@ -32,21 +34,20 @@ public class BrowserController {
     public Button browseTextBtn;
 
     private Stage ownerStage;
-    private File outputFile;
+    private File outputFolder;
 
     @PostConstruct
     public void initialize() {
-        browseTextBtn.setOnAction(event -> openTextFileBrowser());
+        browseTextBtn.setOnAction(event -> openXmlFileBrowser());
         browseImageBtn.setOnAction(event -> openImageFileBrowser());
     }
 
-    public void openTextFileBrowser() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().setAll(textFilter);
-        File file = fileChooser.showOpenDialog(ownerStage);
-        if (file != null) {
-            outputFile = file;
-            outputFileName.setText(file.toString());
+    public void openXmlFileBrowser() {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        File selectedDirectory = directoryChooser.showDialog(ownerStage);
+        if (selectedDirectory != null) {
+            outputFolder = selectedDirectory;
+            outputFileName.setText(outputFolder.toString());
         }
     }
 
@@ -88,8 +89,8 @@ public class BrowserController {
         }
     }
 
-    public File getOutputFile() {
-        return outputFile;
+    public File getOutputFolder() {
+        return outputFolder;
     }
 
     public void setOwnerStage(Stage ownerStage) {

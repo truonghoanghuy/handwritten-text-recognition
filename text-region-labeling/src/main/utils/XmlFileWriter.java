@@ -1,17 +1,14 @@
 package main.utils;
 
 import java.io.File;
-import java.util.ArrayList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -29,6 +26,7 @@ public class XmlFileWriter {
             DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
             doc = docBuilder.newDocument();
+            doc.setXmlStandalone(true);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -64,7 +62,7 @@ public class XmlFileWriter {
         textLine.appendChild(coords);
 
         Element baseLine = doc.createElement("Baseline");
-        coords.setAttribute("points", baseLinePoints);
+        baseLine.setAttribute("points", baseLinePoints);
         textLine.appendChild(baseLine);
 
         Element textEquiv = doc.createElement("TextEquiv");
@@ -76,28 +74,14 @@ public class XmlFileWriter {
         curTextRegion.appendChild(textLine);
     }
 
-    public void main(String[] args) {
+    public void writeXmlFile(File file) {
         try {
-            Element ns = doc.createElementNS("hcmut", "PcGts");
-            doc.appendChild(ns);
-
-            Element page = doc.createElement("Page");
-            page.setAttribute("id", "1");
-            ns.appendChild(page);
-
-            Element textRegion = doc.createElement("TextRegion");
-            page.appendChild(textRegion);
-
-            Element textLine = doc.createElement("TextLine");
-            textRegion.appendChild(textLine);
-
-            //print content of xml file
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
             Transformer transformer = transformerFactory.newTransformer();
             DOMSource source = new DOMSource(doc);
-            StreamResult result = new StreamResult(new File("D:/output.xml"));
+            StreamResult result = new StreamResult(file);
+            transformer.setOutputProperty(OutputKeys.STANDALONE, "yes");
             transformer.transform(source, result);
-
         } catch (Exception e) {
             e.printStackTrace();
         }

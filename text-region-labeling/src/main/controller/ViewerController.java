@@ -13,16 +13,18 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import main.App;
-import main.controller.BrowserController;
+import main.utils.PointProcessor;
 import main.utils.XmlFileWriter;
 
 import javax.annotation.PostConstruct;
+import java.util.List;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -57,8 +59,10 @@ public class ViewerController {
     private String originalImageFileName;
     private BrowserController browserController;
     private StringBuilder groundTruthTxt = null;
-    private String tempBoundary = null;
-    private String tempBaseLine = null;
+    private boolean haveDrawnRegion = false;
+    private boolean canBeWritten = false;
+    private List<int[]> tempBoundary = null;
+    private List<int[]> tempBaseLine = null;
 
 
     @PostConstruct
@@ -93,30 +97,36 @@ public class ViewerController {
     }
 
     private void handleWriteAction() {
-        if (!outputField.getText().isEmpty()) {
-            File outputFile = browserController.getOutputFile();
-            try (FileWriter fileWriter = new FileWriter(outputFile, true)) {
-                PrintWriter printWriter = new PrintWriter(fileWriter);
-                printWriter.println(originalImageFileName + " " + outputField.getText());
-                trace.clear();
-                redoStack.clear();
-                originalImage = imageView.getImage(); // flush the polygon
-                updateOutput();
-            } catch (NullPointerException | FileNotFoundException e) {
-                handleFileNotFound(outputFile);
-            } catch (IOException e) {
-                App.showExceptionAlert(e);
-            }
+        //TO-DO: check some conditions to assure have enough data
+        if (!canBeWritten) {
+            showErrorDialog("You have to add the text line first!");
+            return;
         }
+
+        File outputFolder = browserController.getOutputFolder();
+        try {
+            String fileName = this.originalImageFileName;
+            fileName = fileName.substring(0, fileName.lastIndexOf(".")) + ".xml";
+            File outputFile = new File(outputFolder.getPath() + "/" + fileName);
+            xmlFileWriter.writeXmlFile(outputFile);
+            startOverDrawImage();
+        } catch (NullPointerException e) {
+            handleFileNotFound(outputFolder);
+            return;
+        }
+
+        showInfoDialog("Your XML file is written successfully!");
+        Stage stage = (Stage) writeBtn.getScene().getWindow();
+        stage.close();
     }
 
     private void handleFileNotFound(File outputFile) {
         Alert alert = new Alert(Alert.AlertType.ERROR,
-                String.format("The file: %s%nis not found. Update the path in the main window and retry.", outputFile),
+                "The folder is not found. Update the path in the main window and retry.",
                 ButtonType.OK);
         alert.setHeaderText("File not found!");
         alert.initModality(Modality.WINDOW_MODAL);
-        alert.showAndWait().ifPresent(buttonType -> browserController.openTextFileBrowser());
+        alert.showAndWait().ifPresent(buttonType -> browserController.openXmlFileBrowser());
     }
 
     private void handleCheckpointAction(MouseEvent event) {
@@ -137,47 +147,86 @@ public class ViewerController {
     }
 
     private void handleAddTextRegionAction(MouseEvent event) {
-        if (!event.isPrimaryButtonDown()) return;
-        if (outputField.getText().isEmpty()) return;
+        if (event.getButton() != MouseButton.PRIMARY) return;
+        if (trace.isEmpty()) {
+            showErrorDialog("You have to draw some points on the image!");
+            return;
+        }
 
-        xmlFileWriter.addTextRegion(outputField.getText());
+        String temp = PointProcessor.listToString(PointProcessor.linkedlistToList(trace));
+        xmlFileWriter.addTextRegion(temp);
+        haveDrawnRegion = true;
+        startOverDrawImage();
     }
 
     private void handleAddBoundaryLineAction(MouseEvent event) {
-        if (!event.isPrimaryButtonDown()) return;
-        if (outputField.getText().isEmpty()) return;
+        if (event.getButton() != MouseButton.PRIMARY) return;
+        if (trace.isEmpty()) {
+            showErrorDialog("You have to draw some points on the image!");
+            return;
+        }
 
-        tempBoundary = outputField.getText();
+        tempBoundary = PointProcessor.linkedlistToList(trace);
+        startOverDrawImage();
     }
 
     private void handleAddBaseLineAction (MouseEvent event) {
-        if (!event.isPrimaryButtonDown()) return;
-        if (outputField.getText().isEmpty()) return;
+        if (event.getButton() != MouseButton.PRIMARY) return;
+        if (trace.isEmpty()) {
+            showErrorDialog("You have to draw some points on the image!");
+            return;
+        }
 
-        tempBaseLine = outputField.getText();
+        tempBaseLine = PointProcessor.linkedlistToList(trace);
+        startOverDrawImage();
     }
 
     private void handleAddTextLineAction (MouseEvent event) {
-        //if (!event.isPrimaryButtonDown()) return;
-        //if (tempBoundary == null || tempBaseLine == null) return;
+        if (event.getButton() != MouseButton.PRIMARY) return;
 
-        openTextDialog();
+        StringBuilder ret = new StringBuilder();
+        openTextDialog(ret);
+
+        if (!haveDrawnRegion) {
+            showErrorDialog("You have not drawn the region yet. Please check again!");
+            return;
+        }
+        if (tempBoundary == null) {
+            showErrorDialog("You have not drawn boundary of the line yet. Please check again!");
+            return;
+        }
+        if (tempBaseLine == null) {
+            showErrorDialog("You have not drawn base of the line yet. Please check again!");
+            return;
+        }
+        if (ret.length() == 0) {
+            return;
+        }
+
+        String groundTruthLine = ret.toString();
+        int idx = groundTruthTxt.indexOf(groundTruthLine);
+        groundTruthTxt.delete(idx, idx + ret.length());
+        groundTruthTxt = new StringBuilder(groundTruthTxt.toString().trim());
+
+        PointProcessor.harmonyBoundaryAndBaseLine(tempBoundary, tempBaseLine);
+
+        xmlFileWriter.addTextLine(PointProcessor.listToString(tempBoundary), PointProcessor.listToString(tempBaseLine), groundTruthLine);
+        canBeWritten = true;
     }
 
-    private void openTextDialog() {
+    private void openTextDialog(StringBuilder output) {
         try {
             FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("../view/GroundTruthTextSelectionDialog.fxml"));
             Parent loader = fxmlLoader.load();
             GroundTruthTextSelectionController dialogController = fxmlLoader.getController();
-            StringBuilder outputTxt = new StringBuilder();
-            dialogController.setProperty(outputTxt, groundTruthTxt);
+            dialogController.setProperty(output, groundTruthTxt);
 
             Stage viewerStage = new Stage();
             viewerStage.setTitle("Text Selection Dialog");
             viewerStage.setMinHeight(350);
             viewerStage.setMinWidth(480);
             viewerStage.setScene(new Scene(loader, 550, 430));
-            viewerStage.show();
+            viewerStage.showAndWait();
 
         } catch (Exception e) {
             App.showExceptionAlert(e);
@@ -231,7 +280,14 @@ public class ViewerController {
             }
         }
         outputField.setText(text.toString().trim());
-        writeBtn.setDisable(trace.isEmpty());
+        //writeBtn.setDisable(trace.isEmpty());
+    }
+
+    private void startOverDrawImage() {
+        trace.clear();
+        redoStack.clear();
+        imageView.setImage(originalImage); // flush the polygon
+        updateOutput();
     }
 
     public void setOriginalImage(Image image, String imageFileName) {
@@ -259,5 +315,19 @@ public class ViewerController {
 
     public void setGroundTruthTxt(String txt) {
         groundTruthTxt = new StringBuilder(txt);
+    }
+
+    private void showErrorDialog(String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error Dialog");
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void showInfoDialog(String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Information Dialog");
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 }

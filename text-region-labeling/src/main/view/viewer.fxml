@@ -22,6 +22,6 @@
       <Button fx:id="boundaryLineBtn" mnemonicParsing="false" text="Add Boundary Line" />
       <Button fx:id="baseLineBtn" mnemonicParsing="false" text="Add Base Line" />
       <Button fx:id="textLineBtn" mnemonicParsing="false" text="Add Text Line" />
-        <Button fx:id="writeBtn" disable="true" prefWidth="100" text="Write XML" />
+        <Button fx:id="writeBtn" prefWidth="100" text="Write XML" />
     </HBox>
 </AnchorPane>

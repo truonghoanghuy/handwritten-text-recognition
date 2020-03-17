@@ -1,33 +1,14 @@
 package main.controller;
 
-import javafx.embed.swing.SwingFXUtils;
-import javafx.event.Event;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.WritableImage;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
-import javafx.stage.Modality;
-import javafx.util.Pair;
-import main.App;
-import main.controller.BrowserController;
-import main.utils.XmlFileWriter;
+import javafx.stage.Stage;
 
 import javax.annotation.PostConstruct;
-import java.awt.*;
-import java.awt.event.MouseListener;
-import java.awt.image.BufferedImage;
-import java.io.*;
-import java.util.Iterator;
-import java.util.LinkedList;
-
 public class GroundTruthTextSelectionController {
     @FXML
     private Button okBtn;
@@ -53,6 +34,8 @@ public class GroundTruthTextSelectionController {
         selectedTxt.prefWidthProperty().bind(scrollPane2.widthProperty());
 
         paragraphTxt.setOnMouseClicked(this::handleTextSelection);
+        okBtn.setOnMouseClicked(this::handleOkButton);
+        cancelBtn.setOnMouseClicked(this::handleCancelButton);
     }
 
     private void handleTextSelection(MouseEvent event) {
@@ -63,5 +46,23 @@ public class GroundTruthTextSelectionController {
         this.outputString = output;
         this.groundTruth = groundTruthTxt;
         paragraphTxt.setText(this.groundTruth.toString());
+    }
+
+    private void handleOkButton(MouseEvent event) {
+        this.outputString.append(selectedTxt.getText().trim());
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Information Dialog");
+        alert.setContentText("You have successfully added a text line.");
+        alert.showAndWait();
+        closeWindows();
+    }
+
+    private void handleCancelButton(MouseEvent event) {
+        closeWindows();
+    }
+
+    private void closeWindows() {
+        Stage stage = (Stage) okBtn.getScene().getWindow();
+        stage.close();
     }
 }
