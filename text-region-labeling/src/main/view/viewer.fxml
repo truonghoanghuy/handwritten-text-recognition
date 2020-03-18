@@ -1,27 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.CheckBox?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.Group?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
-
-<AnchorPane fx:id="rootPane" xmlns="http://javafx.com/javafx/8.0.172-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="main.controller.ViewerController">
-    <ScrollPane fitToHeight="true" fitToWidth="true" AnchorPane.bottomAnchor="35" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
+<?import javafx.scene.layout.*?>
+<AnchorPane fx:id="rootPane" xmlns="http://javafx.com/javafx/8.0.172-ea" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="main.controller.ViewerController">
+    <ScrollPane fitToHeight="true" fitToWidth="true" AnchorPane.bottomAnchor="35" AnchorPane.leftAnchor="0"
+                AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
         <StackPane>
-            <ImageView fx:id="imageView" cache="true" pickOnBounds="true" />
+            <Group>
+                <ImageView fx:id="imageView" cache="true" pickOnBounds="true"/>
+            </Group>
         </StackPane>
     </ScrollPane>
-    <HBox alignment="CENTER" spacing="10" style="-fx-padding: 5" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
-        <TextField fx:id="outputField" editable="false" HBox.hgrow="ALWAYS" />
-        <CheckBox fx:id="previewCheckBox" prefWidth="65" text="Preview" />
-      <Button fx:id="regionBtn" mnemonicParsing="false" text="Add Region" />
-      <Button fx:id="boundaryLineBtn" mnemonicParsing="false" text="Add Boundary Line" />
-      <Button fx:id="baseLineBtn" mnemonicParsing="false" text="Add Base Line" />
-      <Button fx:id="textLineBtn" mnemonicParsing="false" text="Add Text Line" />
-        <Button fx:id="writeBtn" prefWidth="100" text="Write XML" />
+    <HBox alignment="CENTER" spacing="10" style="-fx-padding: 5" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"
+          AnchorPane.rightAnchor="0">
+        <TextField fx:id="outputField" editable="false" HBox.hgrow="ALWAYS"/>
+        <CheckBox fx:id="previewCheckBox" prefWidth="65" text="Preview"/>
+        <Button fx:id="regionBtn" mnemonicParsing="false" text="Add Region"/>
+        <Button fx:id="boundaryLineBtn" mnemonicParsing="false" text="Add Boundary Line"/>
+        <Button fx:id="baseLineBtn" mnemonicParsing="false" text="Add Base Line"/>
+        <Button fx:id="textLineBtn" mnemonicParsing="false" text="Add Text Line"/>
+        <Button fx:id="writeBtn" prefWidth="100" text="Write XML"/>
     </HBox>
 </AnchorPane>

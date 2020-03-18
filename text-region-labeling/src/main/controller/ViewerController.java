@@ -13,6 +13,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
@@ -24,12 +25,12 @@ import main.utils.PointProcessor;
 import main.utils.XmlFileWriter;
 
 import javax.annotation.PostConstruct;
-import java.util.List;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.File;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 public class ViewerController {
 
@@ -67,18 +68,9 @@ public class ViewerController {
 
     @PostConstruct
     public void initialize() {
+        rootPane.setOnKeyPressed(this::handleKeyboardShortcuts);
         imageView.setOnMouseClicked(this::handleCheckpointAction);
-        rootPane.setOnKeyPressed(event -> {
-            if (event.isControlDown() && event.getCode() == KeyCode.Z) {
-                if (!event.isShiftDown()) {
-                    undo();
-                } else {
-                    redo();
-                }
-            } else if (event.getCode() == KeyCode.ESCAPE && previewCheckBox.isSelected()) {
-                previewCheckBox.fire();
-            }
-        });
+        outputField.setOnKeyPressed(this::handleKeyboardShortcuts);
         previewCheckBox.setOnAction(event -> {
             if (previewCheckBox.isSelected()) {
                 enablePreview();
@@ -96,6 +88,30 @@ public class ViewerController {
         textLineBtn.setOnMouseClicked(this::handleAddTextLineAction);
     }
 
+    private void handleKeyboardShortcuts(KeyEvent event) {
+        if (event.isControlDown() && event.getCode() == KeyCode.Z) {
+            if (!event.isShiftDown()) {
+                undo();
+            } else {
+                redo();
+            }
+        } else if (event.getCode() == KeyCode.ESCAPE && previewCheckBox.isSelected()) {
+            previewCheckBox.fire();
+        } else if (event.getCode() == KeyCode.I) {
+            scale(2d);
+        } else if (event.getCode() == KeyCode.O) {
+            scale(0.5d);
+        } else {
+            return;
+        }
+        event.consume();
+    }
+
+    private void scale(Double scaleFactor) {
+        imageView.setScaleX(imageView.getScaleX() * scaleFactor);
+        imageView.setScaleY(imageView.getScaleY() * scaleFactor);
+    }
+
     private void handleWriteAction() {
         //TO-DO: check some conditions to assure have enough data
         if (!canBeWritten) {
@@ -106,8 +122,8 @@ public class ViewerController {
         File outputFolder = browserController.getOutputFolder();
         try {
             String fileName = this.originalImageFileName;
-            fileName = fileName.substring(0, fileName.lastIndexOf(".")) + ".xml";
-            File outputFile = new File(outputFolder.getPath() + "/" + fileName);
+            fileName = fileName.substring(0, fileName.lastIndexOf('.')) + ".xml";
+            File outputFile = new File(outputFolder.getPath() + '/' + fileName);
             xmlFileWriter.writeXmlFile(outputFile);
             startOverDrawImage();
         } catch (NullPointerException e) {
