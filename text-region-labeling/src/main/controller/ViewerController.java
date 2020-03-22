@@ -1,7 +1,6 @@
 package main.controller;
 
 import javafx.embed.swing.SwingFXUtils;
-import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -12,10 +11,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.input.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -52,11 +48,13 @@ public class ViewerController {
     private Button baseLineBtn;
     @FXML
     private Button textLineBtn;
+    @FXML
+    private CheckBox axisCheckBox;
 
     private LinkedList<Pair<Integer, Integer>> trace = new LinkedList<>();
     private LinkedList<Pair<Integer, Integer>> redoStack = new LinkedList<>();
     private XmlFileWriter xmlFileWriter;
-    private Image originalImage;
+    private Image originalImage, preDrawnImage;
     private String originalImageFileName;
     private BrowserController browserController;
     private StringBuilder groundTruthTxt = null;
@@ -64,6 +62,7 @@ public class ViewerController {
     private boolean canBeWritten = false;
     private List<int[]> tempBoundary = null;
     private List<int[]> tempBaseLine = null;
+    private double maxX, maxY;
 
 
     @PostConstruct
@@ -71,21 +70,18 @@ public class ViewerController {
         rootPane.setOnKeyPressed(this::handleKeyboardShortcuts);
         imageView.setOnMouseClicked(this::handleCheckpointAction);
         outputField.setOnKeyPressed(this::handleKeyboardShortcuts);
-        previewCheckBox.setOnAction(event -> {
-            if (previewCheckBox.isSelected()) {
-                enablePreview();
-            } else {
-                disablePreview();
-            }
-        });
+
         if (!previewCheckBox.isSelected()) {
             previewCheckBox.fire();
         }
+        imageView.setOnMouseMoved(this::handleMouseMoveAction);
         writeBtn.setOnAction(event -> handleWriteAction());
         regionBtn.setOnMouseClicked(this::handleAddTextRegionAction);
         boundaryLineBtn.setOnMouseClicked(this::handleAddBoundaryLineAction);
         baseLineBtn.setOnMouseClicked(this::handleAddBaseLineAction);
         textLineBtn.setOnMouseClicked(this::handleAddTextLineAction);
+        axisCheckBox.setOnMouseReleased(this::handleTriggerAxisCheckBox);
+        imageView.setOnScroll(this::handleZoomImageAction);
     }
 
     private void handleKeyboardShortcuts(KeyEvent event) {
@@ -153,13 +149,18 @@ public class ViewerController {
         updateOutput();
     }
 
-    private void handlePreviewAction(MouseEvent event) {
-        int x = (int) event.getX();
-        int y = (int) event.getY();
-        Pair<Integer, Integer> current = new Pair<>(x, y);
-        trace.push(current);
-        updateOutput();
-        trace.poll();
+    private void handleMouseMoveAction(MouseEvent event) {
+        if (previewCheckBox.isSelected()) {
+            int x = (int) event.getX();
+            int y = (int) event.getY();
+            Pair<Integer, Integer> current = new Pair<>(x, y);
+            trace.push(current);
+            updateOutput();
+            trace.poll();
+        }
+        if (axisCheckBox.isSelected()) {
+            handleDrawAxis(event);
+        }
     }
 
     private void handleAddTextRegionAction(MouseEvent event) {
@@ -287,6 +288,7 @@ public class ViewerController {
 
     private void updateOutput() {
         drawPolygon();
+        preDrawnImage = imageView.getImage();
         StringBuilder text = new StringBuilder();
         Iterator<Pair<Integer, Integer>> iterator = trace.descendingIterator();
         while (iterator.hasNext()) {
@@ -308,17 +310,11 @@ public class ViewerController {
 
     public void setOriginalImage(Image image, String imageFileName) {
         originalImage = image;
+        preDrawnImage = originalImage;
         originalImageFileName = imageFileName;
         imageView.setImage(image);
-    }
-
-    private void disablePreview() {
-        updateOutput();
-        imageView.setOnMouseMoved(Event::consume);
-    }
-
-    private void enablePreview() {
-        imageView.setOnMouseMoved(this::handlePreviewAction);
+        maxX = imageView.getImage().getWidth();
+        maxY = imageView.getImage().getHeight();
     }
 
     public void setBrowserController(BrowserController browserController) {
@@ -345,5 +341,41 @@ public class ViewerController {
         alert.setTitle("Information Dialog");
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private void handleDrawAxis(MouseEvent event) {
+        Image img = previewCheckBox.isSelected() ? imageView.getImage() : preDrawnImage;
+        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(img, null);
+        Graphics2D graphics = (Graphics2D) bufferedImage.getGraphics();
+        graphics.setStroke(new BasicStroke(2));
+        graphics.setColor(Color.BLUE);
+
+        int x = (int) event.getX();
+        int y = (int) event.getY();
+
+        graphics.drawLine(x, y, 0, y);
+        graphics.drawLine(x, y, (int) maxX, y);
+        graphics.drawLine(x, y, x, 0);
+        graphics.drawLine(x, y, x, (int) maxY);
+
+        WritableImage writableImage = SwingFXUtils.toFXImage(bufferedImage, null);
+        imageView.setImage(writableImage);
+    }
+
+    private void handleTriggerAxisCheckBox(MouseEvent event) {
+        if (event.getButton() != MouseButton.PRIMARY) return;
+
+        if (!axisCheckBox.isSelected()) {
+            imageView.setImage(preDrawnImage);
+        }
+    }
+
+    private void handleZoomImageAction(ScrollEvent event) {
+        double zoomFactor = 1.05;
+        double deltaY = event.getDeltaY();
+        if (deltaY < 0) {
+            zoomFactor = 2.0 - zoomFactor;
+        }
+        scale(zoomFactor);
     }
 }
