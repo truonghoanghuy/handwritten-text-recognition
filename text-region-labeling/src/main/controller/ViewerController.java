@@ -63,7 +63,7 @@ public class ViewerController {
     private List<int[]> tempBoundary = null;
     private List<int[]> tempBaseLine = null;
     private double maxX, maxY;
-
+    private Image drawnPointImage = null;
 
     @PostConstruct
     public void initialize() {
@@ -185,6 +185,7 @@ public class ViewerController {
 
         tempBoundary = PointProcessor.linkedlistToList(trace);
         startOverDrawImage();
+        drawPointOnImage(tempBoundary);
     }
 
     private void handleAddBaseLineAction (MouseEvent event) {
@@ -229,6 +230,9 @@ public class ViewerController {
 
         xmlFileWriter.addTextLine(PointProcessor.listToString(tempBoundary), PointProcessor.listToString(tempBaseLine), groundTruthLine);
         canBeWritten = true;
+        drawnPointImage = null;
+        imageView.setImage(originalImage);
+        preDrawnImage = originalImage;
     }
 
     private void openTextDialog(StringBuilder output) {
@@ -267,7 +271,13 @@ public class ViewerController {
     }
 
     private void drawPolygon() {
-        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(originalImage, null);
+        BufferedImage bufferedImage = null;
+        if (drawnPointImage != null) {
+            bufferedImage = SwingFXUtils.fromFXImage(drawnPointImage, null);
+        } else {
+            bufferedImage = SwingFXUtils.fromFXImage(originalImage, null);
+        }
+
         Graphics2D graphics = (Graphics2D) bufferedImage.getGraphics();
         graphics.setStroke(new BasicStroke(2));
         graphics.setColor(Color.RED);
@@ -377,5 +387,21 @@ public class ViewerController {
             zoomFactor = 2.0 - zoomFactor;
         }
         scale(zoomFactor);
+    }
+
+    private void drawPointOnImage(List<int[]> points) {
+        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(imageView.getImage(), null);
+        Graphics2D graphics = (Graphics2D) bufferedImage.getGraphics();
+        graphics.setStroke(new BasicStroke(2));
+        graphics.setColor(Color.MAGENTA);
+
+        for (int[] point : points) {
+            graphics.drawRect(point[0], point[1], 1, 1);
+        }
+
+        WritableImage writableImage = SwingFXUtils.toFXImage(bufferedImage, null);
+        imageView.setImage(writableImage);
+        drawnPointImage = imageView.getImage();
+        preDrawnImage = drawnPointImage;
     }
 }
