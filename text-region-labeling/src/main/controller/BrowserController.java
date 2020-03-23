@@ -4,6 +4,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
@@ -69,7 +70,16 @@ public class BrowserController {
 
             String nameTxt = file.getName();
             nameTxt = nameTxt.substring(0, nameTxt.lastIndexOf('.')) + ".txt";
-            String txt = new String(Files.readAllBytes(Paths.get(file.getParent() + nameTxt)));
+            String txt = null;
+            try {
+                txt = new String(Files.readAllBytes(Paths.get(file.getParent() + "\\" + nameTxt)));
+            } catch (Exception e) {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("File not found");
+                alert.setContentText("Can not find the text file corresponding to the chosen image (format file name: image_name_without_extension + \".txt\"");
+                alert.showAndWait();
+                return;
+            }
 
             ViewerController viewerController = fxmlLoader.getController();
             viewerController.setOriginalImage(image, file.getName());
