@@ -1,6 +1,7 @@
 import json
 import os
 
+
 def load_file_list(config):
     file_list_path = config['file_list']
     with open(file_list_path) as f:

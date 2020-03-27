@@ -1,28 +1,29 @@
-import numpy as np
 import cv2
+import numpy as np
+
 
 def draw_output(out, img):
     img = img.copy()
 
-    for j in xrange(out['lf'][0].shape[0]):
+    for j in range(out['lf'][0].shape[0]):
         begin = out['beginning'][j]
         end = out['ending'][j]
 
         last_xy = None
-        # for i in xrange(len(out['lf'])):
+        # for i in range(len(out['lf'])):
         begin_f = int(np.floor(begin))
         end_f = int(np.ceil(end))
-        for i in xrange(begin_f, end_f+1):
+        for i in range(begin_f, end_f + 1):
 
             if i == begin_f:
                 p0 = out['lf'][i][j].mean(axis=1)
-                p1 = out['lf'][i+1][j].mean(axis=1)
+                p1 = out['lf'][i + 1][j].mean(axis=1)
                 t = begin - np.floor(begin)
                 p = p0 * (1 - t) + p1 * t
 
             elif i == end_f:
 
-                p0 = out['lf'][i-1][j].mean(axis=1)
+                p0 = out['lf'][i - 1][j].mean(axis=1)
                 if i != len(out['lf']):
                     p1 = out['lf'][i][j].mean(axis=1)
                     t = end - np.floor(end)
@@ -30,8 +31,7 @@ def draw_output(out, img):
                 else:
                     p = p0
             else:
-                p =  out['lf'][i][j].mean(axis=1)
-
+                p = out['lf'][i][j].mean(axis=1)
 
             x = p[0]
             y = p[1]
@@ -39,20 +39,19 @@ def draw_output(out, img):
             x = int(x)
             y = int(y)
 
-            color = (0,0,0)
-            cv2.circle(img,(x,y), 4, color, -1)
+            color = (0, 0, 0)
+            cv2.circle(img, (x, y), 4, color, -1)
 
             if last_xy is not None:
-                cv2.line(img, (x,y), last_xy, color, 2)
+                cv2.line(img, (x, y), last_xy, color, 2)
 
-            last_xy = (x,y)
+            last_xy = (x, y)
 
-    for i in xrange(out['sol'].shape[0]):
-
+    for i in range(out['sol'].shape[0]):
         p = out['sol'][i]
 
         c = int(255 * p[-1])
-        color = (c,0,255-c)
+        color = (c, 0, 255 - c)
 
         x = p[0]
         y = p[1]
@@ -79,9 +78,9 @@ def draw_output(out, img):
 
         # color = (0,0,255)
 
-        cv2.circle(img,(x,y), int(scale), color, 2)
-        cv2.circle(img,(x,y), 4, color, -1)
-        cv2.arrowedLine(img, (x,y), (rx,ry), color, 2, tipLength=0.25)
+        cv2.circle(img, (x, y), int(scale), color, 2)
+        cv2.circle(img, (x, y), 4, color, -1)
+        cv2.arrowedLine(img, (x, y), (rx, ry), color, 2, tipLength=0.25)
         # cv2.line(img, (rx2,ry2), (rx,ry), color, 2)
-        cv2.putText(img,str(i),(x,y), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,255,0),2,cv2.LINE_AA)
+        cv2.putText(img, str(i), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
     return img

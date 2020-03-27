@@ -1,21 +1,16 @@
+import os
+import sys
 
+import numpy as np
 import torch
+import yaml
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
 
-import lf
 from lf import lf_dataset, lf_loss
 from lf.lf_dataset import LfDataset
 from lf.line_follower import LineFollower
-from utils.dataset_wrapper import DatasetWrapper
 from utils.dataset_parse import load_file_list
-
-import numpy as np
-import cv2
-import sys
-import json
-import os
-import yaml
+from utils.dataset_wrapper import DatasetWrapper
 
 with open(sys.argv[1]) as f:
     config = yaml.load(f)
@@ -31,7 +26,7 @@ train_dataloader = DataLoader(train_dataset,
                               batch_size=1,
                               shuffle=True, num_workers=0,
                               collate_fn=lf_dataset.collate)
-batches_per_epoch = int(pretrain_config['lf']['images_per_epoch']/pretrain_config['lf']['batch_size'])
+batches_per_epoch = int(pretrain_config['lf']['images_per_epoch'] / pretrain_config['lf']['batch_size'])
 train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
 
 test_set_list = load_file_list(pretrain_config['validation_set'])
@@ -41,36 +36,35 @@ test_dataloader = DataLoader(test_dataset,
                              shuffle=False, num_workers=0,
                              collate_fn=lf_dataset.collate)
 
-
-line_follower = LineFollower()
-line_follower.cuda()
+d_type = torch.float32
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+line_follower = LineFollower().to(device)
 optimizer = torch.optim.Adam(line_follower.parameters(), lr=pretrain_config['lf']['learning_rate'])
-
-dtype = torch.cuda.FloatTensor
-
 lowest_loss = np.inf
 cnt_since_last_improvement = 0
-for epoch in xrange(1000):
-    print "Epoch", epoch
+
+for epoch in range(1000):
+    print("Epoch", epoch)
     sum_loss = 0.0
     steps = 0.0
     line_follower.train()
+
     for x in train_dataloader:
-        #Only single batch for now
+        # Only single batch for now
         x = x[0]
 
-        positions = [Variable(x_i.type(dtype), requires_grad=False)[None,...] for x_i in x['lf_xyrs']]
-        xy_positions = [Variable(x_i.type(dtype), requires_grad=False)[None,...] for x_i in x['lf_xyxy']]
-        img = Variable(x['img'].type(dtype), requires_grad=False)[None,...]
+        positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyrs']]
+        xy_positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyxy']]
+        img = torch.tensor(x['img']).type(d_type)[None, ...]
 
-        #There might be a way to handle this case later,
-        #but for now we will skip it
+        # There might be a way to handle this case later,
+        # but for now we will skip it
         if len(xy_positions) <= 1:
             continue
 
         reset_interval = 4
         grid_line, _, _, xy_output = line_follower(img, positions[:1], steps=len(positions), all_positions=positions,
-                                           reset_interval=reset_interval, randomize=True, skip_grid=True)
+                                                   reset_interval=reset_interval, randomize=True, skip_grid=True)
 
         loss = lf_loss.point_loss(xy_output, xy_positions)
 
@@ -78,49 +72,51 @@ for epoch in xrange(1000):
         loss.backward()
         optimizer.step()
 
-        sum_loss += loss.data[0]
+        sum_loss += loss.item()
         steps += 1
 
-    print "Train Loss", sum_loss/steps
-    print "Real Epoch", train_dataloader.epoch
+    print("Train Loss", sum_loss / steps)
+    print("Real Epoch", train_dataloader.epoch)
 
     sum_loss = 0.0
     steps = 0.0
     line_follower.eval()
-    for x in test_dataloader:
-        x = x[0]
 
-        positions = [Variable(x_i.type(dtype), requires_grad=False, volatile=True)[None,...] for x_i in x['lf_xyrs']]
-        xy_positions = [Variable(x_i.type(dtype), requires_grad=False, volatile=True)[None,...] for x_i in x['lf_xyxy']]
-        img = Variable(x['img'].type(dtype), requires_grad=False, volatile=True)[None,...]
+    with torch.no_grad():
+        for x in test_dataloader:
+            x = x[0]
 
-        if len(xy_positions) <= 1:
-            continue
+            positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyrs']]
+            xy_positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyxy']]
+            img = torch.tensor(x['img']).type(d_type)[None, ...]
 
-        grid_line, _, _, xy_output = line_follower(img, positions[:1], steps=len(positions), skip_grid=True)
+            if len(xy_positions) <= 1:
+                continue
 
-        # line = torch.nn.functional.grid_sample(img.transpose(2,3), grid_line)
-        # line = (line + 1.0) * 128
-        # cv2.imwrite("tra/{}.png".format(steps), line.data[0].cpu().numpy().transpose())
+            grid_line, _, _, xy_output = line_follower(img, positions[:1], steps=len(positions), skip_grid=True)
 
-        loss = lf_loss.point_loss(xy_output, xy_positions)
+            # line = torch.nn.functional.grid_sample(img.transpose(2,3), grid_line, align_corners=True)
+            # line = (line + 1.0) * 128
+            # cv2.imwrite("tra/{}.png".format(steps), line.data[0].cpu().numpy().transpose())
 
-        sum_loss += loss.data[0]
-        steps += 1
+            loss = lf_loss.point_loss(xy_output, xy_positions)
+
+            sum_loss += loss.item()
+            steps += 1
 
     cnt_since_last_improvement += 1
-    if lowest_loss > sum_loss/steps:
+    if lowest_loss > sum_loss / steps:
         cnt_since_last_improvement = 0
-        lowest_loss = sum_loss/steps
-        print "Saving Best"
+        lowest_loss = sum_loss / steps
+        print("Saving Best")
 
         if not os.path.exists(pretrain_config['snapshot_path']):
             os.makedirs(pretrain_config['snapshot_path'])
 
         torch.save(line_follower.state_dict(), os.path.join(pretrain_config['snapshot_path'], 'lf.pt'))
 
-    print "Test Loss", sum_loss/steps, lowest_loss
-    print ""
+    print("Test Loss", sum_loss / steps, lowest_loss)
+    print()
 
     if cnt_since_last_improvement >= pretrain_config['lf']['stop_after_no_improvement']:
         break

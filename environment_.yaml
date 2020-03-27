@@ -1,0 +1,23 @@
+name: sfr_env
+channels:
+  - anaconda
+  - conda-forge
+  - pytorch
+  - pykaldi
+dependencies:
+  - numpy
+  - pillow
+  - pip
+  - pycparser
+  - pykaldi
+  - scipy
+  - setuptools
+  - wheel
+  - pip:
+      - editdistance
+      - opencv-python
+      - pyclipper
+      - pyyaml==3.12
+      - svgpathtools
+      - torch
+      - torchvision

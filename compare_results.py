@@ -1,8 +1,11 @@
-import sys
 import os
-from preprocessing import parse_PAGE
+import sys
 from collections import defaultdict
+
 import editdistance
+
+from preprocessing import parse_PAGE
+
 
 def read_xml(filename):
     with open(filename) as f:
@@ -12,11 +15,13 @@ def read_xml(filename):
 
     return xml_string_data
 
+
 def get_lines_in_region(data):
     regions = defaultdict(list)
     for l in data['lines']:
         regions[l['region_id']].append(l)
     return regions
+
 
 if __name__ == "__main__":
 
@@ -34,11 +39,11 @@ if __name__ == "__main__":
         for f in files:
             if f.endswith(".xml"):
                 f2_files[f] = os.path.join(root, f)
-    print len(f1_files)
-    print len(f2_files)
+    print(len(f1_files))
+    print(len(f2_files))
 
     sum_dif = 0
-    results =[]
+    results = []
     running_sum = 0
 
     for i, k in enumerate(sorted(f1_files)):
@@ -49,9 +54,8 @@ if __name__ == "__main__":
         xml1 = read_xml(f1)
         xml2 = read_xml(f2)
 
-        data1 = parse_PAGE.readXMLFile(xml1)[0]
-        data2 = parse_PAGE.readXMLFile(xml2)[0]
-
+        data1 = parse_PAGE.read_xml_file(xml1)[0]
+        data2 = parse_PAGE.read_xml_file(xml2)[0]
 
         region1 = get_lines_in_region(data1)
         region2 = get_lines_in_region(data2)
@@ -60,12 +64,12 @@ if __name__ == "__main__":
         xor_set = set(region1.keys()) ^ set(region2.keys())
 
         if len(xor_set) != 0:
-            print k, xor_set
+            print(k, xor_set)
 
         for k in set(region1.keys()) | set(region2.keys()):
 
-            full_r1 = "\n".join([l['ground_truth'] for l in region1[k] ])
-            full_r2 = "\n".join([l['ground_truth'] for l in region2[k] ])
+            full_r1 = "\n".join([l['ground_truth'] for l in region1[k]])
+            full_r2 = "\n".join([l['ground_truth'] for l in region2[k]])
 
             dis = editdistance.eval(full_r1, full_r2)
 
@@ -77,4 +81,4 @@ if __name__ == "__main__":
 
             results.append((out, filename, k, i, full_r1, full_r2))
             sum_dif += out
-    print "WER", sum_dif
+    print("WER", sum_dif)

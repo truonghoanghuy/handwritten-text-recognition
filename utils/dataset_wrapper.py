@@ -7,7 +7,7 @@ class DatasetWrapper(object):
         self.epoch = 0
 
     def __iter__(self):
-        return self
+        return iter(self.dataset)
 
     def next(self):
         if self.idx >= self.count:
