@@ -1,5 +1,6 @@
 import math
 import random
+from typing import List
 
 import cv2
 import numpy as np
@@ -54,8 +55,6 @@ class LfDataset(Dataset):
         if random_subset_size is not None:
             self.detailed_ids = random.sample(self.detailed_ids, min(len(self.ids), random_subset_size))
 
-        print(len(self.detailed_ids))
-
     def __len__(self):
         return len(self.detailed_ids)
 
@@ -65,8 +64,8 @@ class LfDataset(Dataset):
         gt_json_path, img_path = self.ids[ids_idx]
         gt_json = safe_load.json_state(gt_json_path)
 
-        positions = []
-        positions_xy = []
+        positions: List[torch.Tensor] = []
+        positions_xy: List[torch.Tensor] = []
 
         if 'lf' not in gt_json[line_idx]:
             return None
@@ -97,12 +96,12 @@ class LfDataset(Dataset):
             img = augmentation.apply_random_color_rotation(img)
             img = augmentation.apply_tensmeyer_brightness(img)
 
-        img = img.astype(np.float32)
+        img = img.astype(np.float32)  # type: np.ndarray
         img = img.transpose()
         img = img / 128.0 - 1.0
-        img = torch.from_numpy(img)
+        img = torch.from_numpy(img)  # type: torch.Tensor
 
-        gt = gt_json[line_idx]['gt']
+        gt = gt_json[line_idx]['gt']  # type: str
 
         result = {
             "img": img,

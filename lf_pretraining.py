@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+from typing import List
 
 import numpy as np
 import torch
@@ -11,112 +13,98 @@ from lf.lf_dataset import LfDataset
 from lf.line_follower import LineFollower
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
+from utils.dot_progress_printer import DotProgressPrinter
 
-with open(sys.argv[1]) as f:
-    config = yaml.load(f)
+if __name__ == '__main__':
+    sys.stdout.flush()
+    with open(sys.argv[1]) as f:
+        config = yaml.load(f)
+    pretrain_config = config['pretraining']
+    snapshot_path = pretrain_config['snapshot_path']
+    batches_per_epoch = int(pretrain_config['lf']['images_per_epoch'] / pretrain_config['lf']['batch_size'])
 
-sol_network_config = config['network']['sol']
-pretrain_config = config['pretraining']
+    training_set_list = load_file_list(pretrain_config['training_set'])
+    train_dataset = LfDataset(training_set_list, augmentation=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=0,
+                                  collate_fn=lf_dataset.collate)
+    train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)  # TODO: clean this ambiguous epoch count
 
-training_set_list = load_file_list(pretrain_config['training_set'])
+    eval_set_list = load_file_list(pretrain_config['validation_set'])
+    eval_dataset = LfDataset(eval_set_list)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=1, shuffle=False, num_workers=0,
+                                 collate_fn=lf_dataset.collate)
 
-train_dataset = LfDataset(training_set_list,
-                          augmentation=True)
-train_dataloader = DataLoader(train_dataset,
-                              batch_size=1,
-                              shuffle=True, num_workers=0,
-                              collate_fn=lf_dataset.collate)
-batches_per_epoch = int(pretrain_config['lf']['images_per_epoch'] / pretrain_config['lf']['batch_size'])
-train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
+    d_type = torch.float32
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    line_follower = LineFollower().to(device)
+    optimizer = torch.optim.Adam(line_follower.parameters(), lr=pretrain_config['lf']['learning_rate'])
+    lowest_loss = np.inf
+    cnt_since_last_improvement = 0
 
-test_set_list = load_file_list(pretrain_config['validation_set'])
-test_dataset = LfDataset(test_set_list)
-test_dataloader = DataLoader(test_dataset,
-                             batch_size=1,
-                             shuffle=False, num_workers=0,
-                             collate_fn=lf_dataset.collate)
+    start_time = time.time()
+    total_time = 0.0
+    for epoch in range(1000):
+        print(f'Epoch {epoch}')
+        for phase in ['train', 'eval']:
+            if phase == 'train':
+                line_follower.train()
+            else:
+                line_follower.eval()
 
-d_type = torch.float32
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-line_follower = LineFollower().to(device)
-optimizer = torch.optim.Adam(line_follower.parameters(), lr=pretrain_config['lf']['learning_rate'])
-lowest_loss = np.inf
-cnt_since_last_improvement = 0
+            sum_loss = 0.0
+            steps = 0
+            with torch.set_grad_enabled(phase == 'train'):
+                loader = train_dataloader if phase == 'train' else eval_dataloader
+                progress_printer = DotProgressPrinter(len(loader), 100)
+                for index, batch in enumerate(loader):
+                    input = batch[0]  # Only single batch for now
+                    lf_xyrs = input['lf_xyrs']  # type: List[torch.Tensor]
+                    lf_xyxy = input['lf_xyxy']  # type: List[torch.Tensor]
+                    img = input['img']  # type: torch.Tensor
 
-for epoch in range(1000):
-    print("Epoch", epoch)
-    sum_loss = 0.0
-    steps = 0.0
-    line_follower.train()
+                    x_i: torch.Tensor
+                    positions = [x_i.to(device, d_type).unsqueeze_(0) for x_i in lf_xyrs]
+                    xy_positions = [x_i.to(device, d_type).unsqueeze_(0) for x_i in lf_xyxy]
+                    img = img.to(device, d_type).unsqueeze_(0)
 
-    for x in train_dataloader:
-        # Only single batch for now
-        x = x[0]
+                    # There might be a way to handle this case later, but for now we will skip it
+                    if len(xy_positions) <= 1:
+                        continue
 
-        positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyrs']]
-        xy_positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyxy']]
-        img = torch.tensor(x['img']).type(d_type)[None, ...]
-
-        # There might be a way to handle this case later,
-        # but for now we will skip it
-        if len(xy_positions) <= 1:
-            continue
-
-        reset_interval = 4
-        grid_line, _, _, xy_output = line_follower(img, positions[:1], steps=len(positions), all_positions=positions,
-                                                   reset_interval=reset_interval, randomize=True, skip_grid=True)
-
-        loss = lf_loss.point_loss(xy_output, xy_positions)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        sum_loss += loss.item()
-        steps += 1
-
-    print("Train Loss", sum_loss / steps)
-    print("Real Epoch", train_dataloader.epoch)
-
-    sum_loss = 0.0
-    steps = 0.0
-    line_follower.eval()
-
-    with torch.no_grad():
-        for x in test_dataloader:
-            x = x[0]
-
-            positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyrs']]
-            xy_positions = [torch.tensor(x_i).type(d_type)[None, ...] for x_i in x['lf_xyxy']]
-            img = torch.tensor(x['img']).type(d_type)[None, ...]
-
-            if len(xy_positions) <= 1:
-                continue
-
-            grid_line, _, _, xy_output = line_follower(img, positions[:1], steps=len(positions), skip_grid=True)
-
-            # line = torch.nn.functional.grid_sample(img.transpose(2,3), grid_line, align_corners=True)
-            # line = (line + 1.0) * 128
-            # cv2.imwrite("tra/{}.png".format(steps), line.data[0].cpu().numpy().transpose())
-
-            loss = lf_loss.point_loss(xy_output, xy_positions)
-
-            sum_loss += loss.item()
-            steps += 1
-
-    cnt_since_last_improvement += 1
-    if lowest_loss > sum_loss / steps:
-        cnt_since_last_improvement = 0
-        lowest_loss = sum_loss / steps
-        print("Saving Best")
-
-        if not os.path.exists(pretrain_config['snapshot_path']):
-            os.makedirs(pretrain_config['snapshot_path'])
-
-        torch.save(line_follower.state_dict(), os.path.join(pretrain_config['snapshot_path'], 'lf.pt'))
-
-    print("Test Loss", sum_loss / steps, lowest_loss)
-    print()
-
-    if cnt_since_last_improvement >= pretrain_config['lf']['stop_after_no_improvement']:
-        break
+                    if phase == 'train':
+                        grid_line, _, _, xy_output = line_follower(img, positions[:1], steps=len(positions),
+                                                                   skip_grid=True, all_positions=positions,
+                                                                   reset_interval=4, randomize=True)
+                    else:
+                        grid_line, _, _, xy_output = line_follower(img, positions[:1], steps=len(positions),
+                                                                   skip_grid=True)
+                    loss = lf_loss.point_loss(xy_output, xy_positions)
+                    if phase == 'train':
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+                    sum_loss += loss.item()
+                    steps += 1
+                    progress_printer.step()
+                print()
+            if steps == 0:
+                print('No data was loaded')
+                steps = 1
+            avg_loss = sum_loss / steps
+            if phase == 'train':
+                current = time.time()
+                total_time = total_time + current - start_time
+                print(f'Train loss = {avg_loss}, Real epoch = {train_dataloader.epoch}, '
+                      f'Time elapsed: {total_time}, Last epoch: {current - start_time}')
+            else:
+                print(f'Eval loss = {avg_loss}, Current best loss = {lowest_loss}')
+                if lowest_loss > avg_loss:
+                    cnt_since_last_improvement = 0
+                    lowest_loss = avg_loss
+                    print('Better loss. Saving...')
+                    if not os.path.exists(snapshot_path):
+                        os.makedirs(snapshot_path)
+                    torch.save(line_follower.state_dict(), os.path.join(snapshot_path, 'lf.pt'))
+                cnt_since_last_improvement += 1
+                if cnt_since_last_improvement >= pretrain_config['lf']['stop_after_no_improvement']:
+                    exit(0)

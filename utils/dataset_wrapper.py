@@ -7,9 +7,9 @@ class DatasetWrapper(object):
         self.epoch = 0
 
     def __iter__(self):
-        return iter(self.dataset)
+        return self
 
-    def next(self):
+    def __next__(self):
         if self.idx >= self.count:
             self.idx = 0
             raise StopIteration
@@ -25,3 +25,6 @@ class DatasetWrapper(object):
                     return next(self.iter_dataset)
                 except StopIteration:
                     raise Exception("Appears as if dataset is empty")
+
+    def __len__(self):
+        return self.count
