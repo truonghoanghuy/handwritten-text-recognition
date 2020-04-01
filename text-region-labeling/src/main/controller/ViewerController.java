@@ -185,7 +185,6 @@ public class ViewerController {
 
         tempBoundary = PointProcessor.linkedlistToList(trace);
         startOverDrawImage();
-        drawPointOnImage(tempBoundary);
     }
 
     private void handleAddBaseLineAction (MouseEvent event) {
@@ -197,6 +196,7 @@ public class ViewerController {
 
         tempBaseLine = PointProcessor.linkedlistToList(trace);
         startOverDrawImage();
+        drawPointOnImage(tempBaseLine);
     }
 
     private void handleAddTextLineAction (MouseEvent event) {
@@ -288,6 +288,9 @@ public class ViewerController {
             while (iterator.hasNext()) {
                 Pair<Integer, Integer> next = iterator.next();
                 graphics.drawLine(current.getKey(), current.getValue(), next.getKey(), next.getValue());
+                graphics.setColor(Color.GREEN);
+                graphics.drawRect(current.getKey(), current.getValue(), 1, 1);
+                graphics.setColor(Color.RED);
                 current = next;
             }
             graphics.drawLine(current.getKey(), current.getValue(), start.getKey(), start.getValue());
@@ -390,7 +393,7 @@ public class ViewerController {
     }
 
     private void drawPointOnImage(List<int[]> points) {
-        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(imageView.getImage(), null);
+        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(originalImage, null);
         Graphics2D graphics = (Graphics2D) bufferedImage.getGraphics();
         graphics.setStroke(new BasicStroke(2));
         graphics.setColor(Color.MAGENTA);

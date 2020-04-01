@@ -23,8 +23,8 @@
         <CheckBox fx:id="previewCheckBox" prefWidth="65" text="Preview" />
       <CheckBox fx:id="axisCheckBox" mnemonicParsing="false" text="Axis" />
         <Button fx:id="regionBtn" mnemonicParsing="false" text="Add Region" />
-        <Button fx:id="boundaryLineBtn" mnemonicParsing="false" text="Add Boundary Line" />
         <Button fx:id="baseLineBtn" mnemonicParsing="false" text="Add Base Line" />
+        <Button fx:id="boundaryLineBtn" mnemonicParsing="false" text="Add Boundary Line" />
         <Button fx:id="textLineBtn" mnemonicParsing="false" text="Add Text Line" />
         <Button fx:id="writeBtn" prefWidth="100" text="Write XML" />
     </HBox>
