@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Optional
 
 import numpy as np
 import torch
@@ -10,8 +11,8 @@ import sol
 from sol.alignment_loss import alignment_loss
 from sol.crop_transform import CropTransform
 from sol.sol_dataset import SolDataset
+from start_of_line_finder import StartOfLineFinder
 from utils import transformation_utils
-from utils.continuous_state import init_model
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
@@ -52,8 +53,7 @@ alpha_backprop = pretrain_config['sol']['alpha_backprop']
 d_type = torch.float32
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-# sol = StartOfLineFinder(base0, base1).to(device)
-sol, _, _ = init_model(config, only_load='sol')
+sol = StartOfLineFinder(base0, base1).to(device)
 
 optimizer = torch.optim.Adam(sol.parameters(), lr=pretrain_config['sol']['learning_rate'])
 lowest_loss = np.inf
@@ -69,12 +69,12 @@ for epoch in range(1000):
         img: torch.Tensor = x['img']
         img = img.to(device=device, dtype=d_type)
 
-        sol_gt = None
+        sol_gt = None  # type: Optional[torch.Tensor]
         if x['sol_gt'] is not None:
             # This is needed because if sol_gt is None it means that there
             # no GT positions in the image. The alignment loss will handle,
             # it correctly as None
-            sol_gt = x['sol_gt']  # type: torch.Tensor
+            sol_gt = x['sol_gt']
             sol_gt = sol_gt.to(device=device, dtype=d_type)
 
         predictions = sol(img)
