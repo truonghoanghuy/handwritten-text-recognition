@@ -36,16 +36,11 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
 
     with open(char_set_path) as f:
         char_set = json.load(f)
-
-    idx_to_char = {}
-    for k, v in iter(char_set['idx_to_char'].items()):
-        idx_to_char[int(k)] = v
+    idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
 
     sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=model_mode)
 
-    d_type = torch.float32
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    e2e = E2EModel(sol, lf, hw).to(device)
+    e2e = E2EModel(sol, lf, hw)
     e2e.eval()
 
     post_processing_config = config['training']['alignment']['validation_post_processing']

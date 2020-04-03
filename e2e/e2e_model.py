@@ -5,12 +5,12 @@ from torch import nn
 
 class E2EModel(nn.Module):
     def __init__(self, sol, lf, hw, dtype=torch.float32):
-        # TODO: CUDA support
         super().__init__()
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.dtype = dtype
-        self.sol = sol
-        self.lf = lf
-        self.hw = hw
+        self.sol = sol.to(device)
+        self.lf = lf.to(device)
+        self.hw = hw.to(device)
 
     def train(self, mode=True):
         self.sol.train(mode)
@@ -108,6 +108,7 @@ class E2EModel(nn.Module):
                 # sub_xy_positions = [o[h:h + hw_interval] for o in xy_positions]
                 # sub_sub_select_idx = sub_select_idx[h:h + hw_interval]
 
+                # noinspection PyArgumentList
                 line = torch.nn.functional.grid_sample(expand_img[h:h + hw_interval].detach(),
                                                        grid_line[h:h + hw_interval], align_corners=True)
                 line = line.transpose(2, 3)

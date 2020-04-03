@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-import grid_distortion
+from hw import grid_distortion
 from utils import string_utils, safe_load, augmentation
 
 PADDING_CONSTANT = 0
@@ -72,7 +72,6 @@ class HwDataset(Dataset):
 
         if random_subset_size is not None:
             self.detailed_ids = random.sample(self.detailed_ids, min(random_subset_size, len(self.detailed_ids)))
-        print(len(self.detailed_ids))
 
         self.char_to_idx = char_to_idx
         self.augmentation = augmentation

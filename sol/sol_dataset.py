@@ -10,7 +10,6 @@ from utils import safe_load
 
 
 def collate(batch):
-    # batch_size = len(batch)
     imgs = []
     label_sizes = []
     for b in batch:
@@ -45,7 +44,6 @@ def collate(batch):
     }
 
 
-# CNT = 0
 class SolDataset(Dataset):
     def __init__(self, set_list, rescale_range=None, transform=None, random_subset_size=None):
 
@@ -76,7 +74,6 @@ class SolDataset(Dataset):
 
         if random_subset_size is not None:
             self.ids = random.sample(self.ids, min(random_subset_size, len(self.ids)))
-        print("SOL Ids Count:", len(self.ids))
         self.transform = transform
 
     def __len__(self):

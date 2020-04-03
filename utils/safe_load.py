@@ -1,4 +1,5 @@
 import json
+import os
 import time
 
 import torch
@@ -29,3 +30,15 @@ def json_state(path):
             time.sleep(i)
     print("Failed to load state")
     return None
+
+
+def load_checkpoint(path):
+    snapshot = None
+    if os.path.exists(path):
+        try:
+            snapshot = torch.load(path)
+        except Exception as e:
+            print(f'{path} exists but failed to load due to\n\n{e}\n\nThe training process will overwrite it.')
+    elif not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+    return snapshot
