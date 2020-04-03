@@ -5,7 +5,6 @@ import sys
 import torch
 import yaml
 from torch import nn
-from torch.nn import CTCLoss
 from torch.utils.data import DataLoader
 
 from hw import cnn_lstm
@@ -51,7 +50,7 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     hw = cnn_lstm.create_model(hw_network_config).to(device)
     optimizer = torch.optim.Adam(hw.parameters(), lr=pretrain_config['hw']['learning_rate'])
-    criterion = CTCLoss()
+    criterion = nn.CTCLoss(reduction='sum')
 
 
     def calculate_hw_loss(hw_model: nn.Module, input, train=True):
