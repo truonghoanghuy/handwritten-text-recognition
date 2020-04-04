@@ -5,8 +5,8 @@ import sys
 import torch
 import yaml
 from torch import nn
+from torch.nn import functional
 from torch.utils.data import DataLoader
-from warpctc_pytorch import CTCLoss
 
 from hw import cnn_lstm
 from hw import hw_dataset
@@ -51,8 +51,7 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     hw = cnn_lstm.create_model(hw_network_config).to(device)
     optimizer = torch.optim.Adam(hw.parameters(), lr=pretrain_config['hw']['learning_rate'])
-    # criterion = nn.CTCLoss(reduction='sum', zero_infinity=True)
-    criterion = CTCLoss()
+    criterion = nn.CTCLoss(reduction='sum', zero_infinity=True)
 
 
     def calculate_hw_loss(hw_model: nn.Module, input, train=True):
@@ -60,21 +59,19 @@ if __name__ == '__main__':
         labels = input['labels']  # type: torch.Tensor
         label_lengths = input['label_lengths']  # type: torch.Tensor
         line_imgs = line_imgs.to(device, d_type)
-
-        predicts = hw_model(line_imgs).cpu()  # type: torch.Tensor
-        output_batch = predicts.permute(1, 0, 2)
-        out = output_batch.data.numpy()
-
+        predicts: torch.Tensor = hw_model(line_imgs).cpu()  # predicts size: (input_length, batch_size, num_classes)
         if train:
-            batch_size = predicts.size(1)
-            predicts_size = torch.tensor([predicts.size(0)] * batch_size)
-            loss = criterion(predicts, labels, predicts_size, label_lengths)
+            inputs = functional.log_softmax(predicts, dim=2)
+            input_length, batch_size, _ = predicts.size()
+            input_lengths = torch.tensor([input_length] * batch_size)
+            loss = criterion(inputs, labels, input_lengths, label_lengths)
             return loss
         else:
+            outputs = predicts.permute(1, 0, 2).data.numpy()
             cer = 0.0
             steps = 0
             for i, gt_line in enumerate(input['gt']):
-                logits = out[i, ...]
+                logits = outputs[i, ...]
                 pred, raw_pred = string_utils.naive_decode(logits)
                 pred_str = string_utils.label2str_single(pred, idx_to_char, False)
                 cer += error_rates.cer(gt_line, pred_str)
@@ -92,4 +89,4 @@ if __name__ == '__main__':
 
     module_trainer.train(hw, calculate_hw_train_loss, calculate_hw_evaluate_loss,
                          optimizer, train_dataloader, eval_dataloader,
-                         checkpoint_filepath, pretrain_config['hw']['stop_after_no_improvement'], 0.9)
+                         checkpoint_filepath, pretrain_config['hw']['stop_after_no_improvement'], 0.6)
