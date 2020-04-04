@@ -16,7 +16,7 @@ def train(model: nn.Module,
           train_loss: Callable[[nn.Module, Any], torch.Tensor], evaluate_loss: Callable[[nn.Module, Any], torch.Tensor],
           optimizer: optim, train_dataloader: DatasetWrapper, eval_dataloader: DataLoader,
           checkpoint_filepath: str, stop_after_no_improvement: int, loss_patience=None):
-    """train_loss, evaluate_loss: (model, input) -> loss"""
+    """train_loss, evaluate_loss: (model, input) -> batch loss"""
 
     sys.stdout.flush()
     lowest_loss = np.inf
@@ -36,7 +36,7 @@ def train(model: nn.Module,
 
     for sub_epoch in range(1000):
         start_time = time.time()
-        print(f'Epoch {train_dataloader.epoch}. View-epoch = {sub_epoch}.')
+        print(f'View-epoch = {sub_epoch}. Epoch = {train_dataloader.epoch}.')
         for phase in ['train', 'eval']:
             if phase == 'train':
                 model.train()
@@ -65,10 +65,10 @@ def train(model: nn.Module,
                         progress_printer.step(skip=True)
                         continue
                     sum_loss += loss.item()
-                    steps += loader.batch_size
+                    steps += 1
                     progress_printer.step()
             if steps == 0:
-                steps = loader.batch_size
+                steps = 1
                 print('Possibly error: No data was loaded')
             avg_loss = sum_loss / steps
             if phase == 'train':

@@ -6,6 +6,7 @@ import torch
 import yaml
 from torch import nn
 from torch.utils.data import DataLoader
+from warpctc_pytorch import CTCLoss
 
 from hw import cnn_lstm
 from hw import hw_dataset
@@ -50,17 +51,15 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     hw = cnn_lstm.create_model(hw_network_config).to(device)
     optimizer = torch.optim.Adam(hw.parameters(), lr=pretrain_config['hw']['learning_rate'])
-    criterion = nn.CTCLoss(reduction='sum', zero_infinity=True)
+    # criterion = nn.CTCLoss(reduction='sum', zero_infinity=True)
+    criterion = CTCLoss()
 
 
     def calculate_hw_loss(hw_model: nn.Module, input, train=True):
         line_imgs = input['line_imgs']  # type: torch.Tensor
         labels = input['labels']  # type: torch.Tensor
         label_lengths = input['label_lengths']  # type: torch.Tensor
-
         line_imgs = line_imgs.to(device, d_type)
-        labels = labels.to(device)
-        label_lengths = label_lengths.to(device)
 
         predicts = hw_model(line_imgs).cpu()  # type: torch.Tensor
         output_batch = predicts.permute(1, 0, 2)
@@ -73,12 +72,14 @@ if __name__ == '__main__':
             return loss
         else:
             cer = 0.0
+            steps = 0
             for i, gt_line in enumerate(input['gt']):
                 logits = out[i, ...]
                 pred, raw_pred = string_utils.naive_decode(logits)
                 pred_str = string_utils.label2str_single(pred, idx_to_char, False)
                 cer += error_rates.cer(gt_line, pred_str)
-            return torch.tensor(cer)  # input to the module_trainer.train() method must be a tensor
+                steps += 1
+            return torch.tensor(cer / steps)  # input to the module_trainer.train() method must be a tensor
 
 
     def calculate_hw_train_loss(hw_model, input):
