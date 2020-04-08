@@ -6,11 +6,11 @@ from torch import nn
 class E2EModel(nn.Module):
     def __init__(self, sol, lf, hw, dtype=torch.float32):
         super().__init__()
-        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.dtype = dtype
-        self.sol = sol.to(device)
-        self.lf = lf.to(device)
-        self.hw = hw.to(device)
+        self.sol = sol.to(self.device)
+        self.lf = lf.to(self.device)
+        self.hw = hw.to(self.device)
 
     def train(self, mode=True):
         self.sol.train(mode)
@@ -25,11 +25,11 @@ class E2EModel(nn.Module):
     def forward(self, x, use_full_img=True, accept_threshold=0.1, volatile=True, gt_lines=None, idx_to_char=None):
 
         sol_img: torch.Tensor = x['resized_img']
-        sol_img = sol_img.type(self.dtype)
+        sol_img = sol_img.to(self.device, self.dtype)
 
         if use_full_img:
             img: torch.Tensor = x['full_img']
-            img = img.type(self.dtype)
+            img = img.to(self.device, self.dtype)
             scale = x['resize_scale']
             results_scale = 1.0
         else:

@@ -43,7 +43,7 @@ class CRNN(nn.Module):
 
     def forward(self, input: Tensor):
         # conv features
-        conv = self.cnn(input)
+        conv = self.cnn(input.contiguous())
         b, c, h, w = conv.size()
         # assert h == 1, "the height of conv must be 1"
         conv = conv.view(b, -1, w)

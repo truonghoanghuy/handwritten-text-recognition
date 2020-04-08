@@ -38,12 +38,14 @@ if __name__ == "__main__":
     char_to_idx = char_set['char_to_idx']
 
     model_mode = "best_overall"
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=model_mode)
 
     e2e = E2EModel(sol, lf, hw)
     e2e.eval()
 
     for image_path in sorted(image_paths):
+        torch.cuda.empty_cache()
         org_img = cv2.imread(image_path)
         print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
 
@@ -69,11 +71,12 @@ if __name__ == "__main__":
         img = torch.from_numpy(img)
         img = img / 128 - 1
 
-        out = e2e.forward({
-            "resized_img": img,
-            "full_img": full_img,
-            "resize_scale": 1.0 / s
-        }, use_full_img=True)
+        with torch.no_grad():
+            out = e2e.forward({
+                "resized_img": img.to(device),
+                "full_img": full_img.to(device),
+                "resize_scale": 1.0 / s
+            }, use_full_img=True)
 
         out = e2e_postprocessing.results_to_numpy(out)
 
