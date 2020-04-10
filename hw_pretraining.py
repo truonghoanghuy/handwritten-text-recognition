@@ -76,7 +76,7 @@ if __name__ == '__main__':
                 pred_str = string_utils.label2str_single(pred, idx_to_char, False)
                 cer += error_rates.cer(gt_line, pred_str)
                 steps += 1
-            return torch.tensor(cer / steps)  # input to the module_trainer.train() method must be a tensor
+            return cer / steps
 
 
     def calculate_hw_train_loss(hw_model, input):

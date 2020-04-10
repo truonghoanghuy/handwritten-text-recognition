@@ -18,8 +18,8 @@ class LineFollower(nn.Module):
         position_linear.bias.data[1] = 0
         position_linear.bias.data[2] = 0
 
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.output_grid_size = output_grid_size
-
         self.dtype = dtype
         self.cnn = cnn
         self.position_linear = position_linear
@@ -29,14 +29,13 @@ class LineFollower(nn.Module):
 
         if all_positions is None:
             all_positions = []
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         batch_size = image.size(0)
         renorm_matrix = transformation_utils.compute_renorm_matrix(image)
         expanded_renorm_matrix = renorm_matrix.expand(batch_size, 3, 3)
 
         t = ((np.arange(self.output_grid_size) + 0.5) / float(self.output_grid_size))[:, None].astype(np.float32)
         t = np.repeat(t, axis=1, repeats=self.output_grid_size)
-        t = torch.from_numpy(t).to(device, self.dtype)
+        t = torch.from_numpy(t).to(self.device, self.dtype)
         s = t.t()
 
         t = t[:, :, None]
@@ -54,19 +53,19 @@ class LineFollower(nn.Module):
             [2, 0, 2],
             [0, 2, 0],
             [0, 0, 1]
-        ]).expand(batch_size, 3, 3).to(device, self.dtype)
+        ]).expand(batch_size, 3, 3).to(self.device, self.dtype)
 
         step_bias = torch.tensor([
             [1, 0, 2],
             [0, 1, 0],
             [0, 0, 1]
-        ]).expand(batch_size, 3, 3).to(device, self.dtype)
+        ]).expand(batch_size, 3, 3).to(self.device, self.dtype)
 
         invert = torch.tensor([
             [-1, 0, 0],
             [0, -1, 0],
             [0, 0, 1]
-        ]).expand(batch_size, 3, 3).to(device, self.dtype)
+        ]).expand(batch_size, 3, 3).to(self.device, self.dtype)
 
         if negate_lw:
             view_window = invert.bmm(view_window)
@@ -139,19 +138,16 @@ class LineFollower(nn.Module):
             next_windows.append(current_window.bmm(next_window))
 
         grid_line = []
-        # mask_line = []
-        # line_done = []
         xy_positions = []
 
-        a_pt = torch.tensor(
-            [
-                [0, 1, 1],
-                [0, -1, 1]
-            ]
-        ).to(device, self.dtype)
+        a_pt = torch.tensor([
+            [0, 1, 1],
+            [0, -1, 1]
+        ]).to(self.device, self.dtype)
         a_pt = a_pt.transpose(1, 0)
         a_pt = a_pt.expand(batch_size, a_pt.size(0), a_pt.size(1))
 
+        pts_0, pts_1 = None, None
         for i in range(0, len(next_windows) - 1):
 
             w_0 = next_windows[i]

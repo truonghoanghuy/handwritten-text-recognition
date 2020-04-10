@@ -1,4 +1,5 @@
 import torch
+from torch.nn import functional
 
 from utils import transformation_utils
 
@@ -19,7 +20,7 @@ def get_patches(image, crop_window, grid_gen, allow_end_early=False):
     max_d_bounds = d_bounds.max(dim=0)[0].max(dim=0)[0]
     crop_size = torch.ceil(max_d_bounds).long()
     if image.is_cuda:
-        crop_size = crop_size.to(device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
+        crop_size = crop_size.cuda()
     w = crop_size.item()
 
     memory_space = torch.zeros(d_bounds.size(0), 3, w, w).type_as(image)
@@ -84,6 +85,5 @@ def get_patches(image, crop_window, grid_gen, allow_end_early=False):
     grid = grid_gen(translations.bmm(crop_window))
     grid = grid[:, :, :, 0:2] / grid[:, :, :, 2:3]
 
-    resampled = torch.nn.functional.grid_sample(memory_space.transpose(2, 3), grid, mode='bilinear', align_corners=True)
-
-    return resampled
+    # noinspection PyArgumentList
+    return functional.grid_sample(memory_space.transpose(2, 3), grid, align_corners=True)

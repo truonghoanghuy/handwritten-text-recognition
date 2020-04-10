@@ -64,7 +64,7 @@ def train(model: nn.Module,
                             print('\n', e, flush=True)
                         progress_printer.step(skip=True)
                         continue
-                    sum_loss += loss.item()
+                    sum_loss += float(loss)
                     steps += 1
                     progress_printer.step()
             if steps == 0:
