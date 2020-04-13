@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import torch
 from torch import nn
@@ -22,47 +24,33 @@ class E2EModel(nn.Module):
         self.lf.eval()
         self.hw.eval()
 
-    def forward(self, x, use_full_img=True, accept_threshold=0.1, volatile=True, gt_lines=None, idx_to_char=None):
+    def forward(self, x, use_full_img=True, sol_threshold=0.1, volatile=True, gt_lines=None, idx_to_char=None):
 
-        sol_img: torch.Tensor = x['resized_img']
-        sol_img = sol_img.to(self.device, self.dtype)
-
+        resized_img: torch.Tensor = x['resized_img']
+        resized_img = resized_img.to(self.device, self.dtype)
         if use_full_img:
-            img: torch.Tensor = x['full_img']
-            img = img.to(self.device, self.dtype)
+            full_img: torch.Tensor = x['full_img']
+            full_img = full_img.to(self.device, self.dtype)
             scale = x['resize_scale']
             results_scale = 1.0
         else:
-            img = sol_img
+            full_img = resized_img
             scale = 1.0
             results_scale = x['resize_scale']
-
-        original_starts: torch.Tensor = self.sol(sol_img)
-
+        original_starts: torch.Tensor = self.sol(resized_img)  # size: (N, num_sol, 5)
         start = original_starts
-
-        # Take at least one point
-        sorted_start, sorted_indices = torch.sort(start[..., 0:1], dim=1, descending=True)
-        min_threshold = sorted_start[0, 1, 0].data.cpu().item()
-        accept_threshold = min(accept_threshold, min_threshold)
-
-        select = original_starts[..., 0:1] >= accept_threshold
-
-        # select_idx = np.where(select.data.cpu().numpy())[1]
-
-        select = select.expand(select.size(0), select.size(1), start.size(2))
-        select = select.detach()
-        start = start[select].view(start.size(0), -1, start.size(2))
-
-        perform_forward = len(start.size()) == 3
-
-        if not perform_forward:
+        if len(start.size()) != 3:
             return None
 
-        forward_img = img
+        # softer threshold to ensure at least one point will be taken
+        sorted_start, _sorted_indices = torch.sort(start[..., 0:1], dim=1, descending=True)
+        soft_sol_threshold = sorted_start[0, 1, 0].data.cpu().item()
+        accept_threshold = min(sol_threshold, soft_sol_threshold)
+        select = start[..., 0:1] >= accept_threshold
+        select_idx = np.where(select.data.cpu().numpy())[1]
+        start = start[:, select_idx, :]
 
         start = start.transpose(0, 1)
-
         positions = torch.cat([
             start[..., 1:3] * scale,
             start[..., 3:4],
@@ -70,70 +58,67 @@ class E2EModel(nn.Module):
             start[..., 0:1]
         ], 2)
 
-        hw_out = []
-        p_interval = positions.size(0)
-        lf_xy_positions = None
-        line_imgs = []
-        for p in range(0, min(positions.size(0), np.inf), p_interval):
-            sub_positions = positions[p:p + p_interval, 0, :]
-            # sub_select_idx = select_idx[p:p + p_interval]
-            # batch_size = sub_positions.size(0)
-            sub_positions = [sub_positions]
+        all_xy_positions = []  # type: List[List[torch.Tensor]]  # element size = (num_sol, 3, 2) * num_lf_detected
+        line_batches = []  # type: List[torch.Tensor]  # correspond to multiple SOL. element size is (N, C, H, W)
+        line_images = []  # type: List[np.ndarray]
+        sol_batch_size = 10  # number of SOL positions to be processed at a time
+        for s in range(0, positions.size(0), sol_batch_size):
+            torch.cuda.empty_cache()
+            sol_batch = positions[s:s + sol_batch_size, 0, :]
+            _, C, H, W = full_img.size()
+            batch_image = full_img.expand(sol_batch.size(0), C, H, W)
 
-            expand_img = forward_img.expand(sub_positions[0].size(0), img.size(1), img.size(2), img.size(3))
-
-            step_size = 5
-            extra_bw = 1
+            steps = 5
+            extra_backward = 1
             forward_steps = 40
+            grid_lines, _, next_windows, batch_xy_positions = self.lf(batch_image, sol_batch,
+                                                                      steps=steps)
+            grid_lines, _, next_windows, batch_xy_positions = self.lf(batch_image, next_windows[steps],
+                                                                      steps=steps + extra_backward, negate_lw=True)
+            grid_lines, _, next_windows, batch_xy_positions = self.lf(batch_image, next_windows[steps + extra_backward],
+                                                                      steps=forward_steps, allow_end_early=True)
+            all_xy_positions.append(batch_xy_positions)
 
-            grid_line, _, out_positions, xy_positions = self.lf(expand_img, sub_positions, steps=step_size)
-            grid_line, _, out_positions, xy_positions = self.lf(expand_img, [out_positions[step_size]],
-                                                                steps=step_size + extra_bw, negate_lw=True)
-            grid_line, _, out_positions, xy_positions = self.lf(expand_img, [out_positions[step_size + extra_bw]],
-                                                                steps=forward_steps, allow_end_early=True)
+            batch_image = batch_image.transpose(2, 3).detach()
+            # noinspection PyArgumentList
+            line_batch = torch.nn.functional.grid_sample(batch_image, grid_lines, align_corners=True)
+            line_batch = line_batch.transpose(2, 3)
+            line_batches.append(line_batch)
 
-            if lf_xy_positions is None:
-                lf_xy_positions = xy_positions
+        lf_xy_positions = []
+        max_len = max([len(batch_xy_positions) for batch_xy_positions in all_xy_positions])
+        for i, batch_xy_positions in enumerate(all_xy_positions):
+            padded = batch_xy_positions + [batch_xy_positions[-1]] * (max_len - len(batch_xy_positions))
+            if i == 0:
+                lf_xy_positions = padded
             else:
-                for i in range(len(lf_xy_positions)):
-                    lf_xy_positions[i] = torch.cat([
-                        lf_xy_positions[i],
-                        xy_positions[i]
-                    ])
-            expand_img = expand_img.transpose(2, 3)
+                for j in range(len(lf_xy_positions)):
+                    lf_xy_positions[j] = torch.cat((lf_xy_positions[j], padded[j]), dim=0)
 
-            hw_interval = p_interval
-            for h in range(0, min(grid_line.size(0), np.inf), hw_interval):
-                # sub_out_positions = [o[h:h + hw_interval] for o in out_positions]
-                # sub_xy_positions = [o[h:h + hw_interval] for o in xy_positions]
-                # sub_sub_select_idx = sub_select_idx[h:h + hw_interval]
+        hw_in = []
+        maxW = max([line_batch.size(3) for line_batch in line_batches])
+        for line_batch in line_batches:
+            N, C, H, W = line_batch.size()
+            padded = torch.zeros(N, C, H, maxW - W)
+            line_batch = torch.cat([line_batch, padded], dim=3)
+            for line in line_batch:
+                line = line.transpose(0, 1).transpose(1, 2)  # (C, H, W) -> (H, W, C)
+                line = (line + 1) * 128  # [-1, 1) -> [0, 256)
+                line_np = line.data.cpu().numpy()
+                line_images.append(line_np)
+            hw_in.append(line_batch)
+        hw_in = torch.cat(hw_in)
+        hw_out = self.hw(hw_in)
+        hw_out = hw_out.transpose(0, 1)
 
-                # noinspection PyArgumentList
-                line = torch.nn.functional.grid_sample(expand_img[h:h + hw_interval].detach(),
-                                                       grid_line[h:h + hw_interval], align_corners=True)
-                line = line.transpose(2, 3)
-
-                for li in line:
-                    li = li.transpose(0, 1).transpose(1, 2)
-                    li = (li + 1) * 128
-                    l_np = li.data.cpu().numpy()
-                    line_imgs.append(l_np)
-                #     cv2.imwrite("example_line_out.png", l_np)
-                #     print "Saved!"
-                #     raw_input()
-
-                out = self.hw(line)
-                out = out.transpose(0, 1)
-
-                hw_out.append(out)
-
-        hw_out = torch.cat(hw_out, 0)
-
+        # import cv2
+        # for i, image in enumerate(line_images):
+        #     cv2.imwrite(f'debug/line_image_{i}.png', image)
         return {
-            "original_sol": original_starts,
-            "sol": positions,
-            "lf": lf_xy_positions,
-            "hw": hw_out,
-            "results_scale": results_scale,
-            "line_imgs": line_imgs
+            'original_sol': original_starts,
+            'sol': positions,
+            'lf': lf_xy_positions,
+            'hw': hw_out,
+            'results_scale': results_scale,
+            'line_imgs': line_images
         }

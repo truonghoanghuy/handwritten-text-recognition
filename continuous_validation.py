@@ -16,7 +16,7 @@ from e2e import alignment_dataset, e2e_postprocessing
 from e2e import validation_utils
 from e2e.alignment_dataset import AlignmentDataset
 from e2e.e2e_model import E2EModel
-from utils import error_rates
+from utils import error_rates, printer
 from utils.continuous_state import init_model
 from utils.dataset_parse import load_file_list
 
@@ -29,17 +29,14 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
         end = int(len(set_list) * percent_range[1])
         set_list = set_list[start:end]
 
-    dataset = AlignmentDataset(set_list, None)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, collate_fn=alignment_dataset.collate)
-
     char_set_path = config['network']['hw']['char_set_path']
-
     with open(char_set_path) as f:
         char_set = json.load(f)
     idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
 
+    dataset = AlignmentDataset(set_list, None)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0, collate_fn=alignment_dataset.collate)
     sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=model_mode)
-
     e2e = E2EModel(sol, lf, hw)
     e2e.eval()
 
@@ -57,17 +54,12 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
     aligned_results = []
     best_ever_results = []
 
-    a = 0
-    for x in dataloader:
-        sys.stdout.flush()
-        a += 1
-
-        if a % 100 == 0:
-            print(a, np.mean(aligned_results))
-
-        x = x[0]
-        if x is None:
-            print("Skipping alignment because it returned None")
+    progress_printer = printer.ProgressBarPrinter(len(dataloader))
+    progress_printer.start()
+    for batch in dataloader:
+        input = batch[0]
+        if input is None:
+            print('Skipping alignment because it returned None')
             continue
 
         # img = x['resized_img'].numpy()[0, ...].transpose([2, 1, 0])
@@ -75,14 +67,15 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
         #
         # full_img = x['full_img'].numpy()[0, ...].transpose([2, 1, 0])
         # full_img = ((full_img + 1) * 128).astype(np.uint8)
+        gt_json = input['gt_json']
+        gt_lines = input['gt_lines']
+        gt = '\n'.join(gt_lines)
 
-        gt_lines = x['gt_lines']
-        gt = "\n".join(gt_lines)
-
-        out_original = e2e(x)
+        out_original = e2e(input)
         if out_original is None:
             # TODO: not a good way to handle this, but fine for now
             print("Possible Error: Skipping alignment on image")
+            progress_printer.step(skip=True)
             continue
 
         out_original = e2e_postprocessing.results_to_numpy(out_original)
@@ -91,11 +84,9 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
         decoded_hw, decoded_raw_hw = e2e_postprocessing.decode_handwriting(out_original, idx_to_char)
         pick, costs = e2e_postprocessing.align_to_gt_lines(decoded_hw, gt_lines)
 
-        best_ever_pred_lines, improved_idxs = validation_utils.update_ideal_results(pick, costs, decoded_hw,
-                                                                                    x['gt_json'])
-        validation_utils.save_improved_idxs(improved_idxs, decoded_hw,
-                                            decoded_raw_hw, out_original,
-                                            x, config['training'][dataset_lookup]['json_folder'])
+        best_ever_pred_lines, improved_idxs = validation_utils.update_ideal_results(pick, costs, decoded_hw, gt_json)
+        validation_utils.save_improved_idxs(improved_idxs, decoded_hw, decoded_raw_hw, out_original,
+                                            input, config['training'][dataset_lookup]['json_folder'])
 
         best_ever_pred_lines = "\n".join(best_ever_pred_lines)
         error = error_rates.cer(gt, best_ever_pred_lines)
@@ -111,17 +102,12 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
             for key in itertools.product(sol_thresholds_idx, lf_nms_ranges_idx, lf_nms_thresholds_idx):
                 i, j, k = key
                 sol_threshold = sol_thresholds[i]
-                lf_nms_range = lf_nms_ranges[j]
-                lf_nms_threshold = lf_nms_thresholds[k]
-
+                lf_nms_params = {
+                    'overlap_range': lf_nms_ranges[j],
+                    'overlap_threshold': lf_nms_thresholds[k]
+                }
                 out = copy.copy(out_original)
-
-                out = e2e_postprocessing.postprocess(out,
-                                                     sol_threshold=sol_threshold,
-                                                     lf_nms_params={
-                                                         "overlap_range": lf_nms_range,
-                                                         "overlap_threshold": lf_nms_threshold
-                                                     })
+                out = e2e_postprocessing.postprocess(out, sol_threshold=sol_threshold, lf_nms_params=lf_nms_params)
                 order = e2e_postprocessing.read_order(out)
                 e2e_postprocessing.filter_on_pick(out, order)
 
@@ -133,6 +119,9 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
                 error = error_rates.cer(gt, pred)
 
                 results[key].append(error)
+
+        torch.cuda.empty_cache()
+        progress_printer.step()
 
     sum_results = None
     if dataset_lookup == "validation_set":

@@ -51,10 +51,10 @@ if __name__ == '__main__':
         if len(xy_positions) <= 1:
             raise UserWarning('Skipped 1 sample')
         if train:
-            grid_line, _, _, xy_output = lf_model(img, positions[:1], steps=len(positions), skip_grid=True,
+            grid_line, _, _, xy_output = lf_model(img, positions[0], steps=len(positions), skip_grid=True,
                                                   all_positions=positions, reset_interval=4, randomize=True)
         else:
-            grid_line, _, _, xy_output = lf_model(img, positions[:1], steps=len(positions),
+            grid_line, _, _, xy_output = lf_model(img, positions[0], steps=len(positions),
                                                   skip_grid=True)
         loss = lf_loss.point_loss(xy_output, xy_positions)
         return loss

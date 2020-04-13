@@ -78,7 +78,7 @@ class LineFollower(nn.Module):
         for i in range(steps):
 
             if i % reset_interval != 0 or reset_interval == -1:
-                p_0 = positions[-1]
+                p_0 = positions
 
                 if i == 0 and len(p_0.size()) == 3 and p_0.size()[1] == 3 and p_0.size()[2] == 3:
                     # current_window = p_0

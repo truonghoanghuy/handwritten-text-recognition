@@ -11,14 +11,14 @@ from e2e import e2e_postprocessing
 from e2e.e2e_model import E2EModel
 from utils.continuous_state import init_model
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     image_path_directory = sys.argv[1]
 
     image_paths = []
     for root, folder, files in os.walk(image_path_directory):
         for f in files:
-            if f.lower().endswith(".jpg") or f.lower().endswith(".png"):
+            if f.lower().endswith('.jpg') or f.lower().endswith('.png'):
                 image_paths.append(os.path.join(root, f))
 
     with open(sys.argv[2]) as f:
@@ -27,17 +27,12 @@ if __name__ == "__main__":
     output_directory = sys.argv[3]
 
     char_set_path = config['network']['hw']['char_set_path']
-
     with open(char_set_path) as f:
         char_set = json.load(f)
-
-    idx_to_char = {}
-    for k, v in iter(char_set['idx_to_char'].items()):
-        idx_to_char[int(k)] = v
-
+    idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
     char_to_idx = char_set['char_to_idx']
 
-    model_mode = "best_overall"
+    model_mode = 'best_overall'
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=model_mode)
 
@@ -45,7 +40,6 @@ if __name__ == "__main__":
     e2e.eval()
 
     for image_path in sorted(image_paths):
-        torch.cuda.empty_cache()
         org_img = cv2.imread(image_path)
         print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
 
@@ -55,7 +49,6 @@ if __name__ == "__main__":
         pad_amount = 128
         org_img = np.pad(org_img, ((pad_amount, pad_amount), (pad_amount, pad_amount), (0, 0)), 'constant',
                          constant_values=255)
-        before_padding = org_img
 
         target_dim0 = int(org_img.shape[0] * s)
         target_dim1 = int(org_img.shape[1] * s)
@@ -71,17 +64,17 @@ if __name__ == "__main__":
         img = torch.from_numpy(img)
         img = img / 128 - 1
 
+        e2e_input = {
+            'resized_img': img,
+            'full_img': full_img,
+            'resize_scale': 1.0 / s
+        }
         with torch.no_grad():
-            out = e2e.forward({
-                "resized_img": img.to(device),
-                "full_img": full_img.to(device),
-                "resize_scale": 1.0 / s
-            }, use_full_img=True)
-
+            out = e2e.forward(e2e_input)
         out = e2e_postprocessing.results_to_numpy(out)
 
         if out is None:
-            print("No Results")
+            print('No Results')
             continue
 
         # take into account the padding
@@ -93,4 +86,7 @@ if __name__ == "__main__":
 
         out_name = os.path.basename(image_path)
         fill_out_name = os.path.join(output_directory, out_name)
-        np.savez_compressed(fill_out_name + ".npz", **out)
+        np.savez_compressed(fill_out_name + '.npz', **out)
+
+        del img, full_img, out
+        torch.cuda.empty_cache()

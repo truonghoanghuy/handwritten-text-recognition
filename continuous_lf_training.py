@@ -81,8 +81,8 @@ def training_step(config):
                     print("Skipping")
                     continue
 
-                grid_line, _, _, xy_output = lf(img, positions[:1], steps=len(positions), skip_grid=False)
-
+                grid_line, _, _, xy_output = lf(img, positions[0], steps=len(positions), skip_grid=False)
+                # noinspection PyArgumentList
                 line = torch.nn.functional.grid_sample(img.transpose(2, 3), grid_line, align_corners=True)
                 line = line.transpose(2, 3)
                 predictions = hw(line)
@@ -165,7 +165,7 @@ def training_step(config):
                 continue
 
             reset_interval = 4
-            grid_line, _, _, xy_output = lf(img, positions[:1], steps=len(positions), all_positions=positions,
+            grid_line, _, _, xy_output = lf(img, positions[0], steps=len(positions), all_positions=positions,
                                             reset_interval=reset_interval, randomize=True, skip_grid=True)
 
             loss = lf_loss.point_loss(xy_output, xy_positions)
