@@ -71,7 +71,8 @@ def alignment_step(config, dataset_lookup=None, model_mode='best_validation', pe
         gt_lines = input['gt_lines']
         gt = '\n'.join(gt_lines)
 
-        out_original = e2e(input)
+        with torch.no_grad():
+            out_original = e2e(input)
         if out_original is None:
             # TODO: not a good way to handle this, but fine for now
             print("Possible Error: Skipping alignment on image")
