@@ -99,7 +99,7 @@ class E2EModel(nn.Module):
         maxW = max([line_batch.size(3) for line_batch in line_batches])
         for line_batch in line_batches:
             N, C, H, W = line_batch.size()
-            padded = torch.zeros(N, C, H, maxW - W)
+            padded = torch.zeros(N, C, H, maxW - W, dtype=self.dtype, device=self.device)
             line_batch = torch.cat([line_batch, padded], dim=3)
             for line in line_batch:
                 line = line.transpose(0, 1).transpose(1, 2)  # (C, H, W) -> (H, W, C)
