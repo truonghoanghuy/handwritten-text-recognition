@@ -2,7 +2,7 @@ import os
 
 
 class ContinuousTrainingUtil:
-    FILENAME = '.running'
+    FILENAME = 'data/.running'
 
     @staticmethod
     def start():
