@@ -1,165 +1,55 @@
 import os
 import sys
-import time
 
-import numpy as np
 import torch
 import yaml
 from torch.utils.data import DataLoader
 
 from sol import sol_dataset
-from sol.alignment_loss import alignment_loss
+from sol import sol_loss_function
 from sol.crop_transform import CropTransform
 from sol.sol_dataset import SolDataset
-from utils import safe_load, transformation_utils
-from utils.continuous_state import init_model
+from sol.start_of_line_finder import StartOfLineFinder
+from utils import module_trainer
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
-
-def training_step(config):
+# noinspection DuplicatedCode
+if __name__ == '__main__':
+    with open(sys.argv[1]) as f:
+        config = yaml.load(f)
     train_config = config['training']
-
-    allowed_training_time = train_config['sol']['reset_interval']
-    init_training_time = time.time()
-
-    training_set_list = load_file_list(train_config['training_set'])
-    train_dataset = SolDataset(training_set_list,
-                               rescale_range=train_config['sol']['training_rescale_range'],
-                               transform=CropTransform(train_config['sol']['crop_params']))
-
-    train_dataloader = DataLoader(train_dataset,
-                                  batch_size=train_config['sol']['batch_size'],
-                                  shuffle=True, num_workers=0,
-                                  collate_fn=sol_dataset.collate)
-
-    batches_per_epoch = int(train_config['sol']['images_per_epoch'] / train_config['sol']['batch_size'])
-    train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
-
-    test_set_list = load_file_list(train_config['validation_set'])
-    test_dataset = SolDataset(test_set_list,
-                              rescale_range=train_config['sol']['validation_rescale_range'],
-                              random_subset_size=train_config['sol']['validation_subset_size'],
-                              transform=None)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0,
-                                 collate_fn=sol_dataset.collate)
-
+    base0 = config['network']['sol']['base0']
+    base1 = config['network']['sol']['base1']
     alpha_alignment = train_config['sol']['alpha_alignment']
     alpha_backprop = train_config['sol']['alpha_backprop']
+    batches_per_epoch = int(train_config['sol']['images_per_epoch'] / train_config['sol']['batch_size'])
+    checkpoint_filepath = os.path.join(train_config['snapshot']['best_validation'], 'sol_checkpoint.pt')
 
-    d_type = torch.float32
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    sol, _, _ = init_model(config, only_load='sol')
+    train_set_list = load_file_list(train_config['training_set'])
+    train_dataset = SolDataset(train_set_list, rescale_range=train_config['sol']['training_rescale_range'],
+                               transform=CropTransform(train_config['sol']['crop_params']))
+    train_dataloader = DataLoader(train_dataset, batch_size=train_config['sol']['batch_size'], shuffle=True,
+                                  num_workers=0, collate_fn=sol_dataset.collate)
+    train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
+
+    eval_set_list = load_file_list(train_config['validation_set'])
+    eval_dataset = SolDataset(eval_set_list, rescale_range=train_config['sol']['validation_rescale_range'],
+                              random_subset_size=train_config['sol']['validation_subset_size'], transform=None)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=1, shuffle=False, num_workers=0,
+                                 collate_fn=sol_dataset.collate)
+
+    dtype = torch.float32
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    sol = StartOfLineFinder(base0, base1).to(device)
     optimizer = torch.optim.Adam(sol.parameters(), lr=train_config['sol']['learning_rate'])
-    lowest_loss = np.inf
-
-    epoch = -1
-    while True:  # This ends on a break based on the current time
-        epoch += 1
-        print("Train Time:", (time.time() - init_training_time), "Allowed Time:", allowed_training_time)
-
-        sol.eval()
-        sum_loss = 0.0
-        steps = 0.0
-        start_time = time.time()
-        with torch.no_grad():
-            for step_i, x in enumerate(test_dataloader):
-                img: torch.Tensor = x['img']
-                img = img.to(device, d_type)
-
-                if x['sol_gt'] is not None:
-                    sol_gt: torch.Tensor = x['sol_gt']
-                    sol_gt = sol_gt.to(device, d_type)
-
-                predictions = sol(img)
-                predictions = transformation_utils.pt_xyrs_2_xyxy(predictions)
-                loss = alignment_loss(predictions, sol_gt, x['label_sizes'], alpha_alignment, alpha_backprop)
-                sum_loss += loss.item()
-                steps += 1
-
-        if epoch == 0:
-            print("First Validation Step Complete")
-            print("Benchmark Validation CER:", sum_loss / steps)
-            lowest_loss = sum_loss / steps
-
-            sol, _, _ = init_model(config, sol_dir='current', only_load='sol')
-
-            optim_path = os.path.join(train_config['snapshot']['current'], "sol_optim.pt")
-            if os.path.exists(optim_path):
-                print("Loading Optim Settings")
-                optimizer.load_state_dict(safe_load.torch_state(optim_path))
-            else:
-                print("Failed to load Optim Settings")
-
-        elif lowest_loss > sum_loss / steps:
-            lowest_loss = sum_loss / steps
-            print("Saving Best")
-
-            dirname = train_config['snapshot']['best_validation']
-            if not len(dirname) != 0 and os.path.exists(dirname):
-                os.makedirs(dirname)
-
-            save_path = os.path.join(dirname, "sol.pt")
-
-            torch.save(sol.state_dict(), save_path)
-
-        print("Test Loss", sum_loss / steps, lowest_loss)
-        print("Time:", time.time() - start_time)
-        print("")
-
-        print("Epoch", epoch)
-
-        if allowed_training_time < (time.time() - init_training_time):
-            print("Out of time. Saving current state and exiting...")
-            dirname = train_config['snapshot']['current']
-            if not len(dirname) != 0 and os.path.exists(dirname):
-                os.makedirs(dirname)
-
-            save_path = os.path.join(dirname, "sol.pt")
-            torch.save(sol.state_dict(), save_path)
-
-            optim_path = os.path.join(dirname, "sol_optim.pt")
-            torch.save(optimizer.state_dict(), optim_path)
-            break
-
-        sol.train()
-        sum_loss = 0.0
-        steps = 0.0
-        start_time = time.time()
-        for step_i, x in enumerate(train_dataloader):
-            img: torch.Tensor = x['img']
-            img = img.to(device, d_type)
-
-            if x['sol_gt'] is not None:
-                sol_gt: torch.Tensor = x['sol_gt']
-                sol_gt = sol_gt.to(device, d_type)
-
-            predictions = sol(img)
-            predictions = transformation_utils.pt_xyrs_2_xyxy(predictions)
-            loss = alignment_loss(predictions, sol_gt, x['label_sizes'], alpha_alignment, alpha_backprop)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            sum_loss += loss.item()
-            steps += 1
-
-        print("Train Loss", sum_loss / steps)
-        print("Real Epoch", train_dataloader.epoch)
-        print("Time:", time.time() - start_time)
 
 
-if __name__ == "__main__":
-    config_path = sys.argv[1]
+    def sol_loss(model, input):
+        return sol_loss_function.calculate(model, input, dtype, device, alpha_alignment, alpha_backprop)
 
-    with open(config_path) as f:
-        config = yaml.load(f)
 
-    cnt = 0
-    while True:
-        print("")
-        print("Full Step", cnt)
-        print("")
-        cnt += 1
-        training_step(config)
+    trainer = module_trainer.ModuleTrainer(sol, optimizer, sol_loss, sol_loss, train_dataloader, eval_dataloader,
+                                           checkpoint_filepath)
+    resume = 'resume' in sys.argv
+    trainer.train(resume=resume, continuous_training=True)

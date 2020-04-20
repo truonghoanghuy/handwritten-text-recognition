@@ -5,13 +5,13 @@ import sys
 import torch
 import yaml
 from torch import nn
-from torch.nn import functional
 from torch.utils.data import DataLoader
 
 from hw import cnn_lstm
 from hw import hw_dataset
+from hw import hw_loss_function
 from hw.hw_dataset import HwDataset
-from utils import string_utils, error_rates, module_trainer
+from utils import module_trainer
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
@@ -29,64 +29,32 @@ if __name__ == '__main__':
     idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
 
     training_set_list = load_file_list(pretrain_config['training_set'])
-    train_dataset = HwDataset(training_set_list,
-                              char_set['char_to_idx'], augmentation=True,
+    train_dataset = HwDataset(training_set_list, char_set['char_to_idx'], augmentation=True,
                               img_height=hw_network_config['input_height'])
-    train_dataloader = DataLoader(train_dataset,
-                                  batch_size=pretrain_config['hw']['batch_size'],
-                                  shuffle=True, num_workers=0, drop_last=True,
-                                  collate_fn=hw_dataset.collate)
+    train_dataloader = DataLoader(train_dataset, batch_size=pretrain_config['hw']['batch_size'], shuffle=True,
+                                  num_workers=0, drop_last=True, collate_fn=hw_dataset.collate)
     train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
 
     eval_set_list = load_file_list(pretrain_config['validation_set'])
-    eval_dataset = HwDataset(eval_set_list,
-                             char_set['char_to_idx'],
-                             img_height=hw_network_config['input_height'])
-    eval_dataloader = DataLoader(eval_dataset,
-                                 batch_size=pretrain_config['hw']['batch_size'],
-                                 shuffle=False, num_workers=0,
-                                 collate_fn=hw_dataset.collate)
+    eval_dataset = HwDataset(eval_set_list, char_set['char_to_idx'], img_height=hw_network_config['input_height'])
+    eval_dataloader = DataLoader(eval_dataset, batch_size=pretrain_config['hw']['batch_size'], shuffle=False,
+                                 num_workers=0, collate_fn=hw_dataset.collate)
 
-    d_type = torch.float32
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    dtype = torch.float32
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     hw = cnn_lstm.create_model(hw_network_config).to(device)
     optimizer = torch.optim.Adam(hw.parameters(), lr=pretrain_config['hw']['learning_rate'])
     criterion = nn.CTCLoss(reduction='sum', zero_infinity=True)
 
 
-    def calculate_hw_loss(hw_model: nn.Module, input, train=True):
-        line_imgs = input['line_imgs']  # type: torch.Tensor
-        labels = input['labels']  # type: torch.Tensor
-        label_lengths = input['label_lengths']  # type: torch.Tensor
-        line_imgs = line_imgs.to(device, d_type)
-        predicts: torch.Tensor = hw_model(line_imgs).cpu()  # predicts size: (input_length, batch_size, num_classes)
-        if train:
-            inputs = functional.log_softmax(predicts, dim=2)
-            input_length, batch_size, _ = predicts.size()
-            input_lengths = torch.tensor([input_length] * batch_size)
-            loss = criterion(inputs, labels, input_lengths, label_lengths)
-            return loss
-        else:
-            outputs = predicts.permute(1, 0, 2).data.numpy()
-            cer = 0.0
-            steps = 0
-            for i, gt_line in enumerate(input['gt']):
-                logits = outputs[i, ...]
-                pred, raw_pred = string_utils.naive_decode(logits)
-                pred_str = string_utils.label2str_single(pred, idx_to_char, False)
-                cer += error_rates.cer(gt_line, pred_str)
-                steps += 1
-            return cer / steps
-
-
     def calculate_hw_train_loss(hw_model, input):
-        return calculate_hw_loss(hw_model, input, True)
+        return hw_loss_function.calculate_hw_loss(hw_model, input, dtype, device, criterion, idx_to_char, train=True)
 
 
     def calculate_hw_evaluate_loss(hw_model, input):
-        return calculate_hw_loss(hw_model, input, False)
+        return hw_loss_function.calculate_hw_loss(hw_model, input, dtype, device, criterion, idx_to_char, train=False)
 
 
-    module_trainer.train(hw, calculate_hw_train_loss, calculate_hw_evaluate_loss,
-                         optimizer, train_dataloader, eval_dataloader,
-                         checkpoint_filepath, pretrain_config['hw']['stop_after_no_improvement'], 0.6)
+    trainer = module_trainer.ModuleTrainer(hw, optimizer, calculate_hw_train_loss, calculate_hw_evaluate_loss,
+                                           train_dataloader, eval_dataloader, checkpoint_filepath, loss_patience=0.6)
+    trainer.train(stop_after_no_improvement=pretrain_config['sol']['stop_after_no_improvement'])

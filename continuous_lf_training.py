@@ -1,209 +1,62 @@
 import json
 import os
 import sys
-import time
 
-import numpy as np
 import torch
 import yaml
 from torch.utils.data import DataLoader
 
-from lf import lf_dataset
-from lf import lf_loss
+from hw import cnn_lstm
+from lf import lf_dataset, lf_loss_function
 from lf.lf_dataset import LfDataset
-from utils import safe_load
-from utils import string_utils, error_rates
-from utils.continuous_state import init_model
+from lf.line_follower import LineFollower
+from utils import module_trainer, safe_load
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
-
-def training_step(config):
+if __name__ == '__main__':
+    with open(sys.argv[1]) as f:
+        config = yaml.load(f)
     char_set_path = config['network']['hw']['char_set_path']
-
     with open(char_set_path) as f:
         char_set = json.load(f)
-
-    idx_to_char = {}
-    for k, v in iter(char_set['idx_to_char'].items()):
-        idx_to_char[int(k)] = v
-
+    idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
     train_config = config['training']
-
-    allowed_training_time = train_config['lf']['reset_interval']
-    init_training_time = time.time()
-
-    training_set_list = load_file_list(train_config['training_set'])
-    train_dataset = LfDataset(training_set_list,
-                              augmentation=True)
-    train_dataloader = DataLoader(train_dataset,
-                                  batch_size=1,
-                                  shuffle=True, num_workers=0,
-                                  collate_fn=lf_dataset.collate)
+    hw_network_config = config['network']['hw']
     batches_per_epoch = int(train_config['lf']['images_per_epoch'] / train_config['lf']['batch_size'])
-    train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
+    lf_checkpoint_filepath = os.path.join(train_config['snapshot']['best_validation'], 'lf_checkpoint.pt')
+    hw_checkpoint_filepath = os.path.join(train_config['snapshot']['best_validation'], 'hw_checkpoint.pt')
 
-    test_set_list = load_file_list(train_config['validation_set'])
-    test_dataset = LfDataset(test_set_list,
-                             random_subset_size=train_config['lf']['validation_subset_size'])
-    test_dataloader = DataLoader(test_dataset,
-                                 batch_size=1,
-                                 shuffle=False, num_workers=0,
+    train_set_list = load_file_list(train_config['training_set'])
+    train_dataset = LfDataset(train_set_list, augmentation=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=0,
+                                  collate_fn=lf_dataset.collate)
+    train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
+    eval_set_list = load_file_list(train_config['validation_set'])
+    eval_dataset = LfDataset(eval_set_list, random_subset_size=train_config['lf']['validation_subset_size'])
+    eval_dataloader = DataLoader(eval_dataset, batch_size=1, shuffle=False, num_workers=0,
                                  collate_fn=lf_dataset.collate)
 
-    d_type = torch.float32
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    _, lf, hw = init_model(config, only_load=['lf', 'hw'])
-    optimizer = torch.optim.Adam(lf.parameters(), lr=train_config['lf']['learning_rate'])
-    lowest_loss = np.inf
+    dtype = torch.float32
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    hw_checkpoint = safe_load.load_checkpoint(hw_checkpoint_filepath)
+    hw = cnn_lstm.create_model(hw_network_config)
+    hw.load_state_dict(hw_checkpoint['model_state_dict'])
+    hw = hw.to(device)
     hw.eval()
-    for epoch in range(10000000):
-        lf.eval()
-        sum_loss = 0.0
-        steps = 0.0
-        start_time = time.time()
-        with torch.no_grad():
-            for step_i, x in enumerate(test_dataloader):
-                if x is None:
-                    continue
-                # Only single batch for now
-                x = x[0]
-                if x is None:
-                    continue
-
-                positions = [torch.tensor(x_i).to(device, d_type)[None, ...] for x_i in x['lf_xyrs']]
-                xy_positions = [torch.tensor(x_i).to(device, d_type)[None, ...] for x_i in x['lf_xyxy']]
-                img = torch.tensor(x['img']).to(device, d_type)[None, ...]
-
-                # There might be a way to handle this case later,
-                # but for now we will skip it
-                if len(xy_positions) <= 1:
-                    print("Skipping")
-                    continue
-
-                grid_line, _, _, xy_output = lf(img, positions[0], steps=len(positions), skip_grid=False)
-                # noinspection PyArgumentList
-                line = torch.nn.functional.grid_sample(img.transpose(2, 3), grid_line, align_corners=True)
-                line = line.transpose(2, 3)
-                predictions = hw(line)
-
-                out = predictions.permute(1, 0, 2).data.cpu().numpy()
-                gt_line = x['gt']
-                pred, raw_pred = string_utils.naive_decode(out[0])
-                pred_str = string_utils.label2str_single(pred, idx_to_char, False)
-                cer = error_rates.cer(gt_line, pred_str)
-                sum_loss += cer
-                steps += 1
-
-                # l = line[0].transpose(0,1).transpose(1,2)
-                # l = (l + 1)*128
-                # l_np = l.data.cpu().numpy()
-                #
-                # cv2.imwrite("example_line_out.png", l_np)
-                # print "Saved!"
-                # raw_input()
-
-                # loss = lf_loss.point_loss(xy_output, xy_positions)
-                #
-                # sum_loss += loss.item()
-                # steps += 1
-
-        if epoch == 0:
-            print("First Validation Step Complete")
-            print("Benchmark Validation Loss:", sum_loss / steps)
-            lowest_loss = sum_loss / steps
-
-            _, lf, _ = init_model(config, lf_dir='current', only_load="lf")
-
-            optim_path = os.path.join(train_config['snapshot']['current'], "lf_optim.pt")
-            if os.path.exists(optim_path):
-                print("Loading Optim Settings")
-                optimizer.load_state_dict(safe_load.torch_state(optim_path))
-            else:
-                print("Failed to load Optim Settings")
-
-        if lowest_loss > sum_loss / steps:
-            lowest_loss = sum_loss / steps
-            print("Saving Best")
-
-            dirname = train_config['snapshot']['best_validation']
-            if not len(dirname) != 0 and os.path.exists(dirname):
-                os.makedirs(dirname)
-
-            save_path = os.path.join(dirname, "lf.pt")
-
-            torch.save(lf.state_dict(), save_path)
-
-        print("Test Loss", sum_loss / steps, lowest_loss)
-        print("Time:", time.time() - start_time)
-        print("")
-
-        if allowed_training_time < (time.time() - init_training_time):
-            print("Out of time: Exiting...")
-            break
-
-        print("Epoch", epoch)
-        sum_loss = 0.0
-        steps = 0.0
-        lf.train()
-        start_time = time.time()
-        for x in train_dataloader:
-            if x is None:
-                continue
-            # Only single batch for now
-            x = x[0]
-            if x is None:
-                continue
-
-            positions = [torch.tensor(x_i).to(device, d_type)[None, ...] for x_i in x['lf_xyrs']]
-            xy_positions = [torch.tensor(x_i).to(device, d_type)[None, ...] for x_i in x['lf_xyxy']]
-            img = torch.tensor(x['img']).to(device, d_type)[None, ...]
-
-            # There might be a way to handle this case later,
-            # but for now we will skip it
-            if len(xy_positions) <= 1:
-                continue
-
-            reset_interval = 4
-            grid_line, _, _, xy_output = lf(img, positions[0], steps=len(positions), all_positions=positions,
-                                            reset_interval=reset_interval, randomize=True, skip_grid=True)
-
-            loss = lf_loss.point_loss(xy_output, xy_positions)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            sum_loss += loss.item()
-            steps += 1
-
-        print("Train Loss", sum_loss / steps)
-        print("Real Epoch", train_dataloader.epoch)
-        print("Time:", time.time() - start_time)
-
-    # Save current snapshots for next iteration
-    print("Saving Current")
-    dirname = train_config['snapshot']['current']
-    if not len(dirname) != 0 and os.path.exists(dirname):
-        os.makedirs(dirname)
-
-    save_path = os.path.join(dirname, "lf.pt")
-    torch.save(lf.state_dict(), save_path)
-
-    optim_path = os.path.join(dirname, "lf_optim.pt")
-    torch.save(optimizer.state_dict(), optim_path)
+    lf = LineFollower().to(device)
+    optimizer = torch.optim.Adam(lf.parameters(), lr=train_config['lf']['learning_rate'])
 
 
-if __name__ == "__main__":
-    config_path = sys.argv[1]
+    def calculate_lf_train_loss(lf_model, input):
+        return lf_loss_function.calculate(lf_model, input, dtype, device, train=True, hw=hw, idx_to_char=idx_to_char)
 
-    with open(config_path) as f:
-        config = yaml.load(f)
 
-    cnt = 0
-    while True:
-        print("")
-        print("Full Step", cnt)
-        print("")
-        cnt += 1
-        training_step(config)
+    def calculate_lf_evaluate_loss(lf_model, input):
+        return lf_loss_function.calculate(lf_model, input, dtype, device, train=False, hw=hw, idx_to_char=idx_to_char)
+
+
+    trainer = module_trainer.ModuleTrainer(lf, optimizer, calculate_lf_train_loss, calculate_lf_evaluate_loss,
+                                           train_dataloader, eval_dataloader, lf_checkpoint_filepath)
+    resume = 'resume' in sys.argv
+    trainer.train(resume=resume, continuous_training=True)

@@ -33,12 +33,12 @@ def json_state(path):
 
 
 def load_checkpoint(path):
-    snapshot = None
+    checkpoint = None
     if os.path.exists(path):
-        try:
-            snapshot = torch.load(path)
-        except Exception as e:
-            print(f'{path} exists but failed to load due to\n\n{e}\n\nThe training process will overwrite it.')
-    elif not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    return snapshot
+        checkpoint = torch.load(path, map_location='cpu' if not torch.cuda.is_available() else None)
+    else:
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            print(f'The path {dirname} to checkpoint is not exists. Creating one...')
+            os.makedirs(dirname)
+    return checkpoint

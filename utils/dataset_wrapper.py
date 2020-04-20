@@ -1,7 +1,7 @@
 from torch.utils.data import DataLoader
 
 
-class DatasetWrapper(object):
+class DatasetWrapper:
     """
     Wrapper class to create view epoch for validation process.
     Validation is performed each ``view_epoch_size`` samples instead of at the end of an epoch.
@@ -32,10 +32,7 @@ class DatasetWrapper(object):
     def __next_epoch__(self):
         self.__iter_dataset__ = iter(self.__dataset__)
         self.epoch += 1
-        try:
-            return next(self.__iter_dataset__)
-        except StopIteration:
-            raise Exception("Appears as if dataset is empty")
+        return next(self.__iter_dataset__)
 
     def __len__(self):
         return self.__view_epoch_size__

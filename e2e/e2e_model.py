@@ -24,7 +24,7 @@ class E2EModel(nn.Module):
         self.lf.eval()
         self.hw.eval()
 
-    def forward(self, x, use_full_img=True, sol_threshold=0.1, volatile=True, gt_lines=None, idx_to_char=None):
+    def forward(self, x, use_full_img=True, sol_threshold=0.1, lf_batch_size=10):
 
         resized_img: torch.Tensor = x['resized_img']
         resized_img = resized_img.to(self.device, self.dtype)
@@ -37,11 +37,10 @@ class E2EModel(nn.Module):
             full_img = resized_img
             scale = 1.0
             results_scale = x['resize_scale']
+
+        # start of line finder
         original_starts: torch.Tensor = self.sol(resized_img)  # size: (N, num_sol, 5)
         start = original_starts
-        if len(start.size()) != 3:
-            return None
-
         # softer threshold to ensure at least one point will be taken
         sorted_start, _sorted_indices = torch.sort(start[..., 0:1], dim=1, descending=True)
         soft_sol_threshold = sorted_start[0, 1, 0].data.cpu().item()
@@ -58,13 +57,13 @@ class E2EModel(nn.Module):
             start[..., 0:1]
         ], 2)
 
+        # line follower
         all_xy_positions = []  # type: List[List[torch.Tensor]]  # element size = (num_sol, 3, 2) * num_lf_detected
         line_batches = []  # type: List[torch.Tensor]  # correspond to multiple SOL. element size is (N, C, H, W)
         line_images = []  # type: List[np.ndarray]
-        sol_batch_size = 10  # number of SOL positions to be processed at a time
-        for s in range(0, positions.size(0), sol_batch_size):
+        for s in range(0, positions.size(0), lf_batch_size):
             torch.cuda.empty_cache()
-            sol_batch = positions[s:s + sol_batch_size, 0, :]
+            sol_batch = positions[s:s + lf_batch_size, 0, :]
             _, C, H, W = full_img.size()
             batch_image = full_img.expand(sol_batch.size(0), C, H, W)
 
@@ -85,6 +84,7 @@ class E2EModel(nn.Module):
             line_batch = line_batch.transpose(2, 3)
             line_batches.append(line_batch)
 
+        # repeat the last element to have the length = num_lf_detected on all element
         lf_xy_positions = []
         max_len = max([len(batch_xy_positions) for batch_xy_positions in all_xy_positions])
         for i, batch_xy_positions in enumerate(all_xy_positions):
@@ -95,6 +95,7 @@ class E2EModel(nn.Module):
                 for j in range(len(lf_xy_positions)):
                     lf_xy_positions[j] = torch.cat((lf_xy_positions[j], padded[j]), dim=0)
 
+        # pad constant to have the same width on every line images
         hw_in = []
         maxW = max([line_batch.size(3) for line_batch in line_batches])
         for line_batch in line_batches:

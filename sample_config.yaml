@@ -4,8 +4,7 @@ network:
     base1: 16 # architecture dependant - don't change
 
   lf:
-    look_ahead_matrix:
-    step_bias:
+    batch_size: 20 # number of SOL points to be processed in each iteration
 
   hw:
     num_of_outputs: 197
@@ -105,10 +104,12 @@ training:
     sol_resize_width: 512
     metric: "cer"
     train_refresh_groups: 10
+    validate_after: 1000
     validation_post_processing:
-       sol_thresholds: [0.1,0.3,0.5,0.7,0.9]
-       lf_nms_ranges: [[0,6],[0,16],[0,20]]
-       lf_nms_thresholds: [0.1,0.3,0.5,0.7,0.9]
+      sol_thresholds: [0.1,0.3,0.5,0.7,0.9]
+      lf_nms_ranges: [[0,6],[0,16],[0,20]]
+      lf_nms_thresholds: [0.1,0.3,0.5,0.7,0.9]
+    stop_after_no_improvement: 10
 
   snapshot:
     best_overall: "data/snapshots/best_overall"
@@ -117,6 +118,6 @@ training:
     pretrain: "data/snapshots/init"
 
 post_processing:
-   sol_threshold: 0.1
-   lf_nms_range: [0,6]
-   lf_nms_threshold: 0.5
+  sol_threshold: 0.1
+  lf_nms_range: [0,6]
+  lf_nms_threshold: 0.5

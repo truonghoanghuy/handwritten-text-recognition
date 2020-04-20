@@ -1,7 +1,7 @@
 import shutil
 
 
-class ProgressBarPrinter(object):
+class ProgressBarPrinter:
     def __init__(self, num_iteration: int, progress_bar_length: int = 50):
         if progress_bar_length <= 0:
             raise ValueError('progress_bar_length must be positive')
