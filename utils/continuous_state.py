@@ -8,7 +8,7 @@ from sol.start_of_line_finder import StartOfLineFinder
 from utils import safe_load
 
 
-def init_model(config, sol_dir='best_validation', lf_dir='best_validation', hw_dir='best_validation', only_load=None):
+def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='best_overall', only_load=None):
     base_0 = config['network']['sol']['base0']
     base_1 = config['network']['sol']['base1']
 
@@ -26,22 +26,6 @@ def init_model(config, sol_dir='best_validation', lf_dir='best_validation', hw_d
     if only_load is None or only_load == 'lf' or 'lf' in only_load:
         lf = LineFollower(config['network']['hw']['input_height'])
         lf_state = safe_load.torch_state(os.path.join(config['training']['snapshot'][lf_dir], 'lf.pt'))
-
-        # special case for backward support of
-        # previous way to save the LF weights
-        if 'cnn' in lf_state:
-            new_state = {}
-            for k, v in iter(lf_state.items()):
-                if k == 'cnn':
-                    for k2, v2 in iter(v.items()):
-                        new_state[k + '.' + k2] = v2
-                if k == 'position_linear':
-                    for k2, v2 in iter(v.state_dict().items()):
-                        new_state[k + '.' + k2] = v2
-                # if k == 'learned_window':
-                #     new_state[k]=nn.Parameter(v.data)
-            lf_state = new_state
-
         lf.load_state_dict(lf_state)
         lf = lf.to(device)
 

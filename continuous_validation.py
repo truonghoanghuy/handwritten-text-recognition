@@ -24,7 +24,7 @@ from utils.dataset_wrapper import DatasetWrapper
 
 def alignment_step(config, idx_to_char, loader, is_validation_set=True, baseline=False):
     network_config = config['network']
-    checkpoint_dir = config['training']['snapshot']['best_overall' if baseline else 'best_validation']
+    checkpoint_dir = config['training']['snapshot']['best_validation']
     if is_validation_set:
         json_dir = config['training']['validation_set']['json_folder']
     else:
@@ -37,7 +37,10 @@ def alignment_step(config, idx_to_char, loader, is_validation_set=True, baseline
     lf_nms_thresholds = post_processing_config['lf_nms_thresholds']
     lf_nms_thresholds_indices = range(len(lf_nms_thresholds))
 
-    sol, lf, hw = continuous_state.load_model_from_checkpoint(network_config, checkpoint_dir)
+    if baseline:
+        sol, lf, hw = continuous_state.init_model(config)
+    else:
+        sol, lf, hw = continuous_state.load_model_from_checkpoint(network_config, checkpoint_dir)
     e2e = E2EModel(sol, lf, hw)
     e2e.eval()
 
