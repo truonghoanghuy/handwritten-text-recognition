@@ -22,9 +22,9 @@ from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
 
-def alignment_step(config, idx_to_char, loader, is_validation_set=True):
+def alignment_step(config, idx_to_char, loader, is_validation_set=True, baseline=False):
     network_config = config['network']
-    checkpoint_dir = config['training']['snapshot']['best_validation']
+    checkpoint_dir = config['training']['snapshot']['best_overall' if baseline else 'best_validation']
     if is_validation_set:
         json_dir = config['training']['validation_set']['json_folder']
     else:
@@ -128,7 +128,7 @@ def main():
                                  collate_fn=alignment_dataset.collate)
 
     print('Running validation with best overall weight for baseline')
-    error, i_error, mi_error, _, _, _ = alignment_step(config, idx_to_char, eval_dataloader)
+    error, i_error, mi_error, _, _, _ = alignment_step(config, idx_to_char, eval_dataloader, baseline=True)
     print(f'Baseline Validation = {error[1]}, (sol_threshold_id, lf_nms_range_id, lf_nms_threshold_id) = {error[0]}')
     best_cer = error[1]
 
