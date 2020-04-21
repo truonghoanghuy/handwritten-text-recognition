@@ -103,9 +103,14 @@ def alignment_step(config, idx_to_char, loader, is_validation_set=True, baseline
 
     sum_results = None
     if is_validation_set:
-        # Skipping because we didn't do the hyper-parameter search
         sum_results = {k: np.mean(v) for k, v in results.items()}
-        sum_results = min(sum_results.items(), key=operator.itemgetter(1))
+        ((i, j, k), cer) = min(sum_results.items(), key=operator.itemgetter(1))
+        sum_results = {
+            'sol_threshold': sol_thresholds[i],
+            'lf_nms_ranges': lf_nms_ranges[j],
+            'lf_nms_thresholds': lf_nms_thresholds[k],
+            'cer': cer
+        }
 
     return sum_results, np.mean(aligned_results), np.mean(best_ever_results), sol, lf, hw
 
@@ -131,9 +136,9 @@ def main():
                                  collate_fn=alignment_dataset.collate)
 
     print('Running validation with best overall weight for baseline')
-    error, i_error, mi_error, _, _, _ = alignment_step(config, idx_to_char, eval_dataloader, baseline=True)
-    print(f'Baseline Validation = {error[1]}, (sol_threshold_id, lf_nms_range_id, lf_nms_threshold_id) = {error[0]}')
-    best_cer = error[1]
+    result, i_error, mi_error, _, _, _ = alignment_step(config, idx_to_char, eval_dataloader, baseline=True)
+    print(f'Baseline Validation = {result}')
+    best_cer = result['cer']
 
     total_time = 0
     no_improvement_count = 0
@@ -148,19 +153,19 @@ def main():
             else:
                 print(f'Alignment on the next {len(train_dataloader)} samples of the training set')
                 loader = train_dataloader
-            error, i_error, mi_error, sol, lf, hw = alignment_step(config, idx_to_char, loader, is_validation_set)
+            result, i_error, mi_error, sol, lf, hw = alignment_step(config, idx_to_char, loader, is_validation_set)
             phase_time = time.time() - start_time
             total_time += phase_time
-            print(f'CER = {error} -- Current best CER: {best_cer}')
             print(f'Time elapsed = {total_time} -- Last step time = {phase_time}')
             if init_mode:
                 return
             if is_validation_set:
                 no_improvement_count += 1
-                if error[1] < best_cer:
+                print(f'Result: {result} -- Current best cer: {best_cer}')
+                if result['cer'] < best_cer:
                     no_improvement_count = 0
                     save_model(sol, lf, hw, config['training']['snapshot']['best_overall'])
-                    best_cer = error[1]
+                    best_cer = result['cer']
                 if no_improvement_count > config['training']['alignment']['stop_after_no_improvement']:
                     return
 

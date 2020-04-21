@@ -38,7 +38,7 @@ pretraining:
     crop_params:
       prob_label: 0.5
       crop_size: 256
-    training_rescale_range: [384, 640]
+    training_rescale_range: [384,640]
     validation_rescale_range: [512,512] # Don't validate on random range
     batch_size: 1 # During pre-train, only 45 images. If batch is 32 you would get 32 and 13 in an epoch
     images_per_epoch: 1000
@@ -76,7 +76,7 @@ training:
     crop_params:
       prob_label: 0.5
       crop_size: 256
-    training_rescale_range: [384, 640]
+    training_rescale_range: [384,640]
     validation_rescale_range: [512,512] # You should not validation on random range
     validation_subset_size: 1000
     batch_size: 1
@@ -85,22 +85,20 @@ training:
   lf:
     learning_rate: 0.0001 # PyYAML bug: no scientific notation
     batch_size: 1
-    images_per_epoch: 1000 # batches
+    images_per_epoch: 1000
     validation_subset_size: 100 # images
-    reset_interval: 3600 # seconds
 
   hw:
     learning_rate: 0.0002 # PyYAML bug: no scientific notation
     batch_size: 4
     images_per_epoch: 10000 # batches
     validation_subset_size: 2000 # images
-    reset_interval: 3600 # seconds
 
   alignment:
     accept_threshold: 0.1
     sol_resize_width: 512
     metric: "cer"
-    validate_after: 500
+    validate_after: 1000
     validation_post_processing:
       sol_thresholds: [0.1,0.3,0.5,0.7,0.9]
       lf_nms_ranges: [[0,6],[0,16],[0,20]]
