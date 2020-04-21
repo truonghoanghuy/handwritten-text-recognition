@@ -111,7 +111,7 @@ class E2EModel(nn.Module):
                     lf_xy_positions[j] = torch.cat((lf_xy_positions[j], padded[j]), dim=0)
 
         # pad constant to have the same width on every line images
-        hw_in = []
+        hw_out = []
         maxW = max([line_batch.size(3) for line_batch in line_batches])
         for line_batch in line_batches:
             N, C, H, W = line_batch.size()
@@ -122,9 +122,9 @@ class E2EModel(nn.Module):
                 line = (line + 1) * 128  # [-1, 1) -> [0, 256)
                 line_np = line.data.cpu().numpy()
                 line_images.append(line_np)
-            hw_in.append(line_batch)
-        hw_in = torch.cat(hw_in)
-        hw_out = self.hw(hw_in)
+            hw_pred = self.hw(line_batch)
+            hw_out.append(hw_pred)
+        hw_out = torch.cat(hw_out, dim=1)
         hw_out = hw_out.transpose(0, 1)
 
         # import cv2
