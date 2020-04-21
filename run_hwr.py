@@ -69,8 +69,17 @@ if __name__ == '__main__':
             'full_img': full_img,
             'resize_scale': 1.0 / s
         }
-        with torch.no_grad():
-            out = e2e.forward(e2e_input)
+        try:
+            with torch.no_grad():
+                out = e2e.forward(e2e_input)
+        except RuntimeError as e:
+            if 'CUDA out of memory' in str(e):
+                e2e.to_cpu()
+                with torch.no_grad():
+                    out = e2e.forward(e2e_input, lf_batch_size=100)
+                e2e.to_cuda()
+            else:
+                raise e
         out = e2e_postprocessing.results_to_numpy(out)
 
         if out is None:

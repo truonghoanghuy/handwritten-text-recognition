@@ -130,10 +130,10 @@ class GridGen(Module):
         # self.grid[:, :, 1] = np.expand_dims(
         #     np.repeat(np.expand_dims(np.linspace(-1, 1, self.width), 0), repeats=self.height, axis=0), 0)
         self.grid[:, :, 2] = np.ones([self.height, width])
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.grid = torch.from_numpy(self.grid).to(device, dtype=torch.float32)
+        self.grid = torch.from_numpy(self.grid)
 
     def forward(self, input: torch.Tensor):
+        self.grid = self.grid.to(input.device, input.dtype)
         out = torch.matmul(input[:, None, None, :, :], self.grid[None, :, :, :, None])
         out = out.squeeze(-1)
         return out

@@ -18,7 +18,6 @@ class LineFollower(nn.Module):
         position_linear.bias.data[1] = 0
         position_linear.bias.data[2] = 0
 
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.output_grid_size = output_grid_size
         self.dtype = dtype
         self.cnn = cnn
@@ -35,7 +34,7 @@ class LineFollower(nn.Module):
 
         t = ((np.arange(self.output_grid_size) + 0.5) / float(self.output_grid_size))[:, None].astype(np.float32)
         t = np.repeat(t, axis=1, repeats=self.output_grid_size)
-        t = torch.from_numpy(t).to(self.device, self.dtype)
+        t = torch.from_numpy(t).to(image.device, self.dtype)
         s = t.t()
 
         t = t[:, :, None]
@@ -53,19 +52,19 @@ class LineFollower(nn.Module):
             [2, 0, 2],
             [0, 2, 0],
             [0, 0, 1]
-        ]).expand(batch_size, 3, 3).to(self.device, self.dtype)
+        ]).expand(batch_size, 3, 3).to(image.device, self.dtype)
 
         step_bias = torch.tensor([
             [1, 0, 2],
             [0, 1, 0],
             [0, 0, 1]
-        ]).expand(batch_size, 3, 3).to(self.device, self.dtype)
+        ]).expand(batch_size, 3, 3).to(image.device, self.dtype)
 
         invert = torch.tensor([
             [-1, 0, 0],
             [0, -1, 0],
             [0, 0, 1]
-        ]).expand(batch_size, 3, 3).to(self.device, self.dtype)
+        ]).expand(batch_size, 3, 3).to(image.device, self.dtype)
 
         if negate_lw:
             view_window = invert.bmm(view_window)
@@ -143,7 +142,7 @@ class LineFollower(nn.Module):
         a_pt = torch.tensor([
             [0, 1, 1],
             [0, -1, 1]
-        ]).to(self.device, self.dtype)
+        ]).to(image.device, self.dtype)
         a_pt = a_pt.transpose(1, 0)
         a_pt = a_pt.expand(batch_size, a_pt.size(0), a_pt.size(1))
 

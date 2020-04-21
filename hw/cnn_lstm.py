@@ -1,4 +1,3 @@
-import torch
 from torch import nn, Tensor
 
 
@@ -71,8 +70,5 @@ class BidirectionalLSTM(nn.Module):
 
 
 def create_model(config):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    return CRNN(config['cnn_out_size'],
-                config['num_of_channels'],
-                config['num_of_outputs'],
-                hidden_size=512).to(device)
+    return CRNN(cnn_out_size=config['cnn_out_size'], num_channel=config['num_of_channels'],
+                num_class=config['num_of_outputs'], hidden_size=512)

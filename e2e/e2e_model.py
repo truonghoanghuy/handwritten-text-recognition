@@ -10,9 +10,22 @@ class E2EModel(nn.Module):
         super().__init__()
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.dtype = dtype
-        self.sol = sol.to(self.device)
-        self.lf = lf.to(self.device)
-        self.hw = hw.to(self.device)
+        self.sol = sol
+        self.lf = lf
+        self.hw = hw
+        self.to_cuda()
+
+    def to_cuda(self):
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.sol = self.sol.to(self.device)
+        self.lf = self.lf.to(self.device)
+        self.hw = self.hw.to(self.device)
+
+    def to_cpu(self):
+        self.device = torch.device('cpu')
+        self.sol = self.sol.to(self.device)
+        self.lf = self.lf.to(self.device)
+        self.hw = self.hw.to(self.device)
 
     def train(self, mode=True):
         self.sol.train(mode)
