@@ -4,7 +4,7 @@ network:
     base1: 16 # architecture dependant - don't change
 
   lf:
-    batch_size: 20 # number of SOL points to be processed in each iteration
+    batch_size: 30 # number of SOL points to be processed in each iteration
 
   hw:
     num_of_outputs: 197
@@ -81,21 +81,18 @@ training:
     validation_subset_size: 1000
     batch_size: 1
     images_per_epoch: 10000
-    reset_interval: 3600 # seconds
 
   lf:
     learning_rate: 0.0001 # PyYAML bug: no scientific notation
     batch_size: 1
-    refresh_interval: 3600 # seconds
     images_per_epoch: 1000 # batches
     validation_subset_size: 100 # images
     reset_interval: 3600 # seconds
 
   hw:
     learning_rate: 0.0002 # PyYAML bug: no scientific notation
-    batch_size: 8
-    refresh_interval: 3600 # seconds
-    images_per_epoch: 20000 # batches
+    batch_size: 4
+    images_per_epoch: 10000 # batches
     validation_subset_size: 2000 # images
     reset_interval: 3600 # seconds
 
@@ -103,8 +100,7 @@ training:
     accept_threshold: 0.1
     sol_resize_width: 512
     metric: "cer"
-    train_refresh_groups: 10
-    validate_after: 1000
+    validate_after: 500
     validation_post_processing:
       sol_thresholds: [0.1,0.3,0.5,0.7,0.9]
       lf_nms_ranges: [[0,6],[0,16],[0,20]]

@@ -84,6 +84,8 @@ class E2EModel(nn.Module):
             line_batch = line_batch.transpose(2, 3)
             line_batches.append(line_batch)
 
+        del batch_image
+
         # repeat the last element to have the length = num_lf_detected on all element
         lf_xy_positions = []
         max_len = max([len(batch_xy_positions) for batch_xy_positions in all_xy_positions])

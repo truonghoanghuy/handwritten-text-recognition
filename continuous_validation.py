@@ -144,10 +144,10 @@ def main():
             is_validation_set = (phase == 'validation')
             if is_validation_set:
                 print(f'Alignment on the validation set')
-                loader = train_dataloader
+                loader = eval_dataloader
             else:
                 print(f'Alignment on the next {len(train_dataloader)} samples of the training set')
-                loader = eval_dataloader
+                loader = train_dataloader
             error, i_error, mi_error, sol, lf, hw = alignment_step(config, idx_to_char, loader, is_validation_set)
             phase_time = time.time() - start_time
             total_time += phase_time

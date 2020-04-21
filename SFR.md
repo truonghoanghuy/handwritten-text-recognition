@@ -4,7 +4,7 @@
 This repository is the implementation of the methods described in our paper [Start, Follow, Read: Full-Page End-to-end Handwriting Recognition](http://openaccess.thecvf.com/content_ECCV_2018/html/Curtis_Wigington_Start_Follow_Read_ECCV_2018_paper.html).
 All steps to reproduce our results for the [ICDAR2017 Competition on Handwritten Text Recognition on the READ Dataset](https://scriptnet.iit.demokritos.gr/competitions/8/) can be found in this repo.
 
-This code is free for academic and research use. For commercial use of our code and methods please contact [BYU Tech Transfer](techtransfer.byu.edu).
+This code is free for academic and research use. For commercial use of our code and methods please contact [BYU Tech Transfer](https://techtransfer.byu.edu).
 
 We will also include pretrained models, results, and the segmentation data inferred during training. These can be found on the [release page](https://github.com/cwig/start_follow_read/releases).
 
@@ -114,12 +114,10 @@ python hw_pretraining.py sample_config.yaml
 
 #### Copy Weights
 
-After pretraining you need to copy the initial weights into the `best_overall`, `best_validation`, and `current` folders.
+After pretraining you need to copy the initial weights into the `best_overall` and `best_validation` folders.
 
 ```
-cp -r data/snapshots/init data/snapshots/best_overall
-cp -r data/snapshots/init data/snapshots/best_validation
-cp -r data/snapshots/init data/snapshots/current
+python copy_weights.py sample_config.yaml
 ```
 
 ## Training
