@@ -58,8 +58,17 @@ def alignment_step(config, idx_to_char, loader, is_validation_set=True, baseline
         gt_lines = input['gt_lines']
         gt = '\n'.join(gt_lines)
 
-        with torch.no_grad():
-            out_original = e2e(input, lf_batch_size=config['network']['lf']['batch_size'])
+        try:
+            with torch.no_grad():
+                out_original = e2e.forward(input, lf_batch_size=config['network']['lf']['batch_size'])
+        except RuntimeError as e:
+            if 'CUDA out of memory' in str(e):
+                e2e.to_cpu()
+                with torch.no_grad():
+                    out_original = e2e.forward(input, lf_batch_size=100)
+                e2e.to_cuda()
+            else:
+                raise e
 
         out_original = e2e_postprocessing.results_to_numpy(out_original)
         out_original['idx'] = np.arange(out_original['sol'].shape[0])
