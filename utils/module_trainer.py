@@ -98,12 +98,13 @@ class ModuleTrainer:
                         steps += 1
                         progress_printer.step()
                 avg_loss = sum_loss / steps
-                phase_time = time.time() - start_time
-                total_time = total_time + phase_time
                 if phase == 'train':
-                    print(f'Train loss = {avg_loss}, Time elapsed: {total_time}, Last epoch time: {phase_time}')
+                    print(f'Train loss = {avg_loss}')
                 else:
+                    phase_time = time.time() - start_time
+                    total_time = total_time + phase_time
                     print(f'Eval loss = {avg_loss}, Current best loss = {lowest_loss}')
+                    print(f'Time elapsed: {total_time}, Last epoch time: {phase_time}')
                     no_improvement_count += 1
                     if avg_loss < lowest_loss:
                         no_improvement_count = 0
