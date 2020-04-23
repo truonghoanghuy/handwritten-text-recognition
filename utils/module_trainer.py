@@ -52,6 +52,8 @@ class ModuleTrainer:
         no_improvement_count = 0
         print(f'Training set size: {self.train_dataloader.epoch_steps} batch(es) x {self.train_dataloader.batch_size} '
               f'sample(s)/batch')
+        print(f'Evaluation set size: {len(self.eval_dataloader)} batch(es) x {self.eval_dataloader.batch_size} '
+              f'sample(s)/batch')
 
         # Load checkpoint to continue training if exists
         checkpoint = safe_load.load_checkpoint(self.checkpoint_filepath)
@@ -101,15 +103,12 @@ class ModuleTrainer:
                 if phase == 'train':
                     print(f'Train loss = {avg_loss}')
                 else:
-                    phase_time = time.time() - start_time
-                    total_time = total_time + phase_time
-                    print(f'Eval loss = {avg_loss}, Current best loss = {lowest_loss}')
-                    print(f'Time elapsed: {total_time}, Last epoch time: {phase_time}')
+                    print(f'Eval loss = {avg_loss}, Current best loss = {lowest_loss}', end='')
                     no_improvement_count += 1
                     if avg_loss < lowest_loss:
                         no_improvement_count = 0
                         lowest_loss = avg_loss
-                        print('Better loss. Saving...')
+                        print(' -- Better loss. Saving...', end='')
                         torch.save({
                             'model_state_dict': self.model.state_dict(),
                             'optimizer_state_dict': self.optimizer.state_dict(),
@@ -117,6 +116,9 @@ class ModuleTrainer:
                             'loss': lowest_loss,
                             'total_time': total_time
                         }, self.checkpoint_filepath)
+                    phase_time = time.time() - start_time
+                    total_time = total_time + phase_time
+                    print(f'\nTime elapsed: {total_time}, Last epoch time: {phase_time}')
                     if continuous_training:
                         if not ContinuousTrainingUtil.is_running():
                             return
