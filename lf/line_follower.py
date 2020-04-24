@@ -1,82 +1,86 @@
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
-from stn.gridgen import AffineGridGen, PerspectiveGridGen, GridGen
-import numpy as np
+
 from utils import transformation_utils
-from lf_cnn import makeCnn
-from fast_patch_view import get_patches
+from .fast_patch_view import get_patches
+from .lf_cnn import make_cnn
+from .stn.gridgen import GridGen
+
 
 class LineFollower(nn.Module):
-    def __init__(self, output_grid_size=32, dtype=torch.cuda.FloatTensor):
+    def __init__(self, output_grid_size=32, dtype=torch.float32):
         super(LineFollower, self).__init__()
-        cnn = makeCnn()
-        position_linear = nn.Linear(512,5)
+        cnn = make_cnn()
+        position_linear = nn.Linear(512, 5)
         position_linear.weight.data.zero_()
         position_linear.bias.data[0] = 0
         position_linear.bias.data[1] = 0
         position_linear.bias.data[2] = 0
 
         self.output_grid_size = output_grid_size
-
         self.dtype = dtype
         self.cnn = cnn
         self.position_linear = position_linear
 
-    def forward(self, image, positions, steps=None, all_positions=[], reset_interval=-1, randomize=False, negate_lw=False, skip_grid=False, allow_end_early=False):
+    def forward(self, image, positions, steps=None, all_positions=None, reset_interval=-1, randomize=False,
+                negate_lw=False, skip_grid=False, allow_end_early=False):
 
+        if all_positions is None:
+            all_positions = []
         batch_size = image.size(0)
         renorm_matrix = transformation_utils.compute_renorm_matrix(image)
-        expanded_renorm_matrix = renorm_matrix.expand(batch_size,3,3)
+        expanded_renorm_matrix = renorm_matrix.expand(batch_size, 3, 3)
 
-        t = ((np.arange(self.output_grid_size) + 0.5) / float(self.output_grid_size))[:,None].astype(np.float32)
-        t = np.repeat(t,axis=1, repeats=self.output_grid_size)
-        t = Variable(torch.from_numpy(t), requires_grad=False).cuda()
+        t = ((np.arange(self.output_grid_size) + 0.5) / float(self.output_grid_size))[:, None].astype(np.float32)
+        t = np.repeat(t, axis=1, repeats=self.output_grid_size)
+        t = torch.from_numpy(t).to(image.device, self.dtype)
         s = t.t()
 
-        t = t[:,:,None]
-        s = s[:,:,None]
+        t = t[:, :, None]
+        s = s[:, :, None]
 
+        # noinspection PyTypeChecker
         interpolations = torch.cat([
-            (1-t)*s,
-            (1-t)*(1-s),
-            t*s,
-            t*(1-s),
+            (1 - t) * s,
+            (1 - t) * (1 - s),
+            t * s,
+            t * (1 - s),
         ], dim=-1)
 
-        view_window = Variable(torch.cuda.FloatTensor([
-            [2,0,2],
-            [0,2,0],
-            [0,0,1]
-        ])).expand(batch_size,3,3)
+        view_window = torch.tensor([
+            [2, 0, 2],
+            [0, 2, 0],
+            [0, 0, 1]
+        ]).expand(batch_size, 3, 3).to(image.device, self.dtype)
 
-        step_bias = Variable(torch.cuda.FloatTensor([
-            [1,0,2],
-            [0,1,0],
-            [0,0,1]
-        ])).expand(batch_size,3,3)
+        step_bias = torch.tensor([
+            [1, 0, 2],
+            [0, 1, 0],
+            [0, 0, 1]
+        ]).expand(batch_size, 3, 3).to(image.device, self.dtype)
 
-        invert = Variable(torch.cuda.FloatTensor([
-            [-1,0,0],
-            [0,-1,0],
-            [0,0,1]
-        ])).expand(batch_size,3,3)
+        invert = torch.tensor([
+            [-1, 0, 0],
+            [0, -1, 0],
+            [0, 0, 1]
+        ]).expand(batch_size, 3, 3).to(image.device, self.dtype)
 
         if negate_lw:
             view_window = invert.bmm(view_window)
 
-        grid_gen = GridGen(32,32)
+        grid_gen = GridGen(32, 32)
 
         view_window_imgs = []
         next_windows = []
         reset_windows = True
-        for i in xrange(steps):
+        for i in range(steps):
 
-            if i%reset_interval != 0 or reset_interval==-1:
-                p_0 = positions[-1]
+            if i % reset_interval != 0 or reset_interval == -1:
+                p_0 = positions
 
                 if i == 0 and len(p_0.size()) == 3 and p_0.size()[1] == 3 and p_0.size()[2] == 3:
-                    current_window = p_0
+                    # current_window = p_0
                     reset_windows = False
                     next_windows.append(p_0)
 
@@ -89,9 +93,9 @@ class LineFollower(nn.Module):
                     mul_moise = p_0.clone()
                     mul_moise.data.fill_(1.0)
 
-                    add_noise[:,0].data.uniform_(-2, 2)
-                    add_noise[:,1].data.uniform_(-2, 2)
-                    add_noise[:,2].data.uniform_(-.1, .1)
+                    add_noise[:, 0].data.uniform_(-2, 2)
+                    add_noise[:, 1].data.uniform_(-2, 2)
+                    add_noise[:, 2].data.uniform_(-.1, .1)
 
                     p_0 = p_0 * mul_moise + add_noise
 
@@ -110,22 +114,20 @@ class LineFollower(nn.Module):
             resampled = get_patches(image, crop_window, grid_gen, allow_end_early)
 
             if resampled is None and i > 0:
-                #get patches checks to see if stopping early is allowed
+                # get patches checks to see if stopping early is allowed
                 break
 
             if resampled is None and i == 0:
-                #Odd case where it start completely off of the edge
-                #This happens rarely, but maybe should be more eligantly handled
-                #in the future
-                resampled = Variable(torch.zeros(crop_window.size(0), 3, 32, 32).type_as(image.data), requires_grad=False)
-
+                # Odd case where it start completely off of the edge
+                # This happens rarely, but maybe should be more eligantly handled
+                # in the future
+                resampled = torch.zeros(crop_window.size(0), 3, 32, 32).type_as(image.data)
 
             # Process Window CNN
             cnn_out = self.cnn(resampled)
             cnn_out = torch.squeeze(cnn_out, dim=2)
             cnn_out = torch.squeeze(cnn_out, dim=2)
             delta = self.position_linear(cnn_out)
-
 
             next_window = transformation_utils.get_step_matrix(delta)
             next_window = next_window.bmm(step_bias)
@@ -135,23 +137,20 @@ class LineFollower(nn.Module):
             next_windows.append(current_window.bmm(next_window))
 
         grid_line = []
-        mask_line = []
-        line_done = []
         xy_positions = []
 
-        a_pt = Variable(torch.Tensor(
-            [
-                [0, 1,1],
-                [0,-1,1]
-            ]
-        )).cuda()
-        a_pt = a_pt.transpose(1,0)
+        a_pt = torch.tensor([
+            [0, 1, 1],
+            [0, -1, 1]
+        ]).to(image.device, self.dtype)
+        a_pt = a_pt.transpose(1, 0)
         a_pt = a_pt.expand(batch_size, a_pt.size(0), a_pt.size(1))
 
-        for i in xrange(0, len(next_windows)-1):
+        pts_0, pts_1 = None, None
+        for i in range(0, len(next_windows) - 1):
 
             w_0 = next_windows[i]
-            w_1 = next_windows[i+1]
+            w_1 = next_windows[i + 1]
 
             pts_0 = w_0.bmm(a_pt)
             pts_1 = w_1.bmm(a_pt)
@@ -164,8 +163,8 @@ class LineFollower(nn.Module):
 
             grid_pts = expanded_renorm_matrix.bmm(pts)
 
-            grid = interpolations[None,:,:,None,:] * grid_pts[:,None,None,:,:]
-            grid = grid.sum(dim=-1)[...,:2]
+            grid = interpolations[None, :, :, None, :] * grid_pts[:, None, None, :, :]
+            grid = grid.sum(dim=-1)[..., :2]
 
             grid_line.append(grid)
 

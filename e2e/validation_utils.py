@@ -1,27 +1,27 @@
-from utils import error_rates
-import copy
-import os
-import cv2
 import json
+import os
 
-from copy import deepcopy
-
+import cv2
 import numpy as np
+
+from utils import error_rates
+
 
 def interpolate(key1, key2, lf, lf_idx, step_percent):
     x0 = lf[lf_idx][key1]
     y0 = lf[lf_idx][key2]
-    x1 = lf[lf_idx+1][key1]
-    y1 = lf[lf_idx+1][key2]
+    x1 = lf[lf_idx + 1][key1]
+    y1 = lf[lf_idx + 1][key2]
 
     x = x1 * step_percent + x0 * (1.0 - step_percent)
     y = y1 * step_percent + y0 * (1.0 - step_percent)
 
     return x, y
 
+
 def get_subdivide_pt(i, pred_full, lf):
-    percent = (float(i)+0.5) / float(len(pred_full))
-    lf_percent = (len(lf)-1) * percent
+    percent = (float(i) + 0.5) / float(len(pred_full))
+    lf_percent = (len(lf) - 1) * percent
 
     lf_idx = int(np.floor(lf_percent))
     step_percent = lf_percent - lf_idx
@@ -31,17 +31,16 @@ def get_subdivide_pt(i, pred_full, lf):
 
     return x0, y0, x1, y1
 
-def save_improved_idxs(improved_idxs, decoded_hw, decoded_raw_hw, out, x, json_folder):
 
+def save_improved_idxs(improved_idxs, decoded_hw, decoded_raw_hw, out, x, json_folder):
     output_lines = [{
         "gt": gt['gt']
     } for gt in x['gt_json']]
 
-
     # for i in improved_idxs:
-    for i in xrange(len(output_lines)):
+    for i in range(len(output_lines)):
 
-        if not i in improved_idxs:
+        if i not in improved_idxs:
             output_lines[i] = x['gt_json'][i]
             continue
 
@@ -55,7 +54,7 @@ def save_improved_idxs(improved_idxs, decoded_hw, decoded_raw_hw, out, x, json_f
         after_line_points = []
         lf_path = out['lf']
         end = out['ending'][k]
-        for j in xrange(len(lf_path)):
+        for j in range(len(lf_path)):
             p = lf_path[j][k]
             s = out['results_scale']
 
@@ -77,10 +76,10 @@ def save_improved_idxs(improved_idxs, decoded_hw, decoded_raw_hw, out, x, json_f
         begin = out['beginning'][k]
         begin_f = int(np.floor(begin))
         p0 = out['lf'][begin_f][k]
-        if begin_f+1 >= len(out['lf']):
-             p = p0
+        if begin_f + 1 >= len(out['lf']):
+            p = p0
         else:
-            p1 = out['lf'][begin_f+1][k]
+            p1 = out['lf'][begin_f + 1][k]
             t = begin - np.floor(begin)
             p = p0 * (1 - t) + p1 * t
 
@@ -98,7 +97,7 @@ def save_improved_idxs(improved_idxs, decoded_hw, decoded_raw_hw, out, x, json_f
         output_lines[i]['sol'] = sol_point
         output_lines[i]['lf'] = line_points
         output_lines[i]['after_lf'] = after_line_points
-        output_lines[i]['start_idx'] = 1 #TODO: update to backward idx
+        output_lines[i]['start_idx'] = 1  # TODO: update to backward idx
         output_lines[i]['hw_path'] = img_file_name
 
         line_img = out['line_imgs'][k]
@@ -110,12 +109,12 @@ def save_improved_idxs(improved_idxs, decoded_hw, decoded_raw_hw, out, x, json_f
     with open(json_path, 'w') as f:
         json.dump(output_lines, f)
 
-def update_ideal_results(pick, costs, decoded_hw, gt_json):
 
+def update_ideal_results(pick, costs, decoded_hw, gt_json):
     most_ideal_pred = []
     improved_idxs = {}
 
-    for i in xrange(len(gt_json)):
+    for i in range(len(gt_json)):
         gt_obj = gt_json[i]
 
         prev_pred = gt_obj.get('pred', '')
