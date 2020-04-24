@@ -1,25 +1,22 @@
-from e2e import e2e_model
-from e2e.e2e_model import E2EModel
+import copy
+import itertools
+
+import numpy as np
 
 import validation_utils
-
+from e2e.e2e_model import E2EModel
 from utils import error_rates
 
-import itertools
-import copy
-import numpy as np
-import cv2
 
-def forward_pass(x, e2e, config, thresholds, idx_to_char, update_json=False):
-
-    gt_lines = x['gt_lines']
-    gt = "\n".join(gt_lines)
+def forward_pass(x, e2e, thresholds, idx_to_char):
+    # gt_lines = x['gt_lines']
+    # gt = "\n".join(gt_lines)
 
     out_original = e2e(x)
     results = {}
     if out_original is None:
-        #TODO: not a good way to handle this, but fine for now
-        None
+        # TODO: not a good way to handle this, but fine for now
+        pass
 
     gt_lines = x['gt_lines']
     gt = "\n".join(gt_lines)
@@ -34,12 +31,13 @@ def forward_pass(x, e2e, config, thresholds, idx_to_char, update_json=False):
     # if update_json:
     #     validation_utils.save_improved_idxs(improved_idxs, decoded_hw,
     #                                         decoded_raw_hw, out_original,
-    #                                         x, config[dataset_lookup]['json_folder'], config['alignment']['trim_to_sol'])
+    #                                         x, config[dataset_lookup]['json_folder'],
+    #                                         config['alignment']['trim_to_sol'])
 
     sol_thresholds = thresholds[0]
     sol_thresholds_idx = range(len(sol_thresholds))
 
-    lf_nms_ranges =  thresholds[1]
+    lf_nms_ranges = thresholds[1]
     lf_nms_ranges_idx = range(len(lf_nms_ranges))
 
     lf_nms_thresholds = thresholds[2]
@@ -57,7 +55,7 @@ def forward_pass(x, e2e, config, thresholds, idx_to_char, update_json=False):
     most_ideal_result = error
 
     for key in itertools.product(sol_thresholds_idx, lf_nms_ranges_idx, lf_nms_thresholds_idx):
-        i,j,k = key
+        i, j, k = key
         sol_threshold = sol_thresholds[i]
         lf_nms_range = lf_nms_ranges[j]
         lf_nms_threshold = lf_nms_thresholds[k]
@@ -65,11 +63,11 @@ def forward_pass(x, e2e, config, thresholds, idx_to_char, update_json=False):
         out = copy.copy(out_original)
 
         out = E2EModel.postprocess(out,
-            sol_threshold=sol_threshold,
-            lf_nms_params={
-                "overlap_range": lf_nms_range,
-                "overlap_threshold": lf_nms_threshold
-        })
+                                   sol_threshold=sol_threshold,
+                                   lf_nms_params={
+                                       "overlap_range": lf_nms_range,
+                                       "overlap_threshold": lf_nms_threshold
+                                   })
         order = E2EModel.read_order(out)
         E2EModel.filter_on_pick(out, order)
 

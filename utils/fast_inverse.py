@@ -1,58 +1,65 @@
 import numpy as np
-from torch.autograd import Variable
 import torch
 
-def adjoint(A):
-    """compute inverse without division by det; ...xv3xc3 input, or array of matrices assumed"""
-    AI = np.empty_like(A)
-    for i in xrange(3):
-        AI[...,i,:] = np.cross(A[...,i-2,:], A[...,i-1,:])
-    return AI
 
-def inverse_transpose(A):
+def adjoint(a):
+    """compute inverse without division by det; ...xv3xc3 input, or array of matrices assumed"""
+    ai = np.empty_like(a)
+    for i in range(3):
+        ai[..., i, :] = np.cross(a[..., i - 2, :], a[..., i - 1, :])
+    return ai
+
+
+def inverse_transpose(a):
     """
     efficiently compute the inverse-transpose for stack of 3x3 matrices
     """
-    I = adjoint(A)
-    det = dot(I, A).mean(axis=-1)
-    return I / det[...,None,None]
+    ai = adjoint(a)
+    det = dot(ai, a).mean(axis=-1)
+    return ai / det[..., None, None]
 
-def inverse(A):
+
+def inverse(a):
     """inverse of a stack of 3x3 matrices"""
-    return np.swapaxes( inverse_transpose(A), -1,-2)
-def dot(A, B):
+    return np.swapaxes(inverse_transpose(a), -1, -2)
+
+
+def dot(a, b):
     """dot arrays of vecs; contract over last indices"""
-    return np.einsum('...i,...i->...', A, B)
+    return np.einsum('...i,...i->...', a, b)
 
-def adjoint_torch(A):
-    AI = A.clone()
-    for i in xrange(3):
-        AI[...,i,:] = torch.cross(A[...,i-2,:], A[...,i-1,:])
-    return AI
 
-def inverse_transpose_torch(A):
-    I = adjoint_torch(A)
-    det = dot_torch(I, A).mean(dim=-1)
-    return I / det[:,None,None]
+def adjoint_torch(a):
+    ai = a.clone()
+    for i in range(3):
+        ai[..., i, :] = torch.cross(a[..., i - 2, :], a[..., i - 1, :])
+    return ai
 
-def inverse_torch(A):
-    return inverse_transpose_torch(A).transpose(1, 2)
 
-def dot_torch(A, B):
-    A_view = A.view(-1,1,3)
-    B_view = B.contiguous().view(-1,3,1)
-    out = torch.bmm(A_view, B_view)
-    out_view = out.view(A.size()[:-1])
+def inverse_transpose_torch(a):
+    inv = adjoint_torch(a)
+    det = dot_torch(inv, a).mean(dim=-1)
+    return inv / det[:, None, None]
+
+
+def inverse_torch(a):
+    return inverse_transpose_torch(a).transpose(1, 2)
+
+
+def dot_torch(a, b):
+    a_view = a.view(-1, 1, 3)
+    b_view = b.contiguous().view(-1, 3, 1)
+    out = torch.bmm(a_view, b_view)
+    out_view = out.view(a.size()[:-1])
     return out_view
 
 
 if __name__ == "__main__":
-    A = np.random.rand(2,3,3)
-    I = inverse(A)
+    A = np.random.rand(2, 3, 3)
+    AI = inverse(A)
 
-    A_torch = Variable(torch.from_numpy(A))
+    A_torch = torch.from_numpy(A)
 
-    I_torch = inverse_torch(A_torch)
-    print I
-    print I_torch
-
+    AI_torch = inverse_torch(A_torch)
+    print(AI)
+    print(AI_torch)

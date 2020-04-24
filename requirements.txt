@@ -1,2 +1,10 @@
+svgpathtools
+pyclipper
+scipy
+torchvision
+editdistance
+numpy
+opencv-python
 pillow
+PyYAML
 torch
