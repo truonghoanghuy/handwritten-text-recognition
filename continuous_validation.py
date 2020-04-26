@@ -152,7 +152,7 @@ def main():
     total_time = 0
     no_improvement_count = 0
     while True:
-        for phase in ['validation', 'train']:
+        for phase in ['train', 'validation']:
             print()
             start_time = time.time()
             is_validation_set = (phase == 'validation')
