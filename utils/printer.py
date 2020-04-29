@@ -8,7 +8,7 @@ class ProgressBarPrinter:
         self.__count__ = 0
         self.__num_iter__ = num_iteration
         self.__progress_bar_length__ = progress_bar_length
-        self.__pattern__ = '\r[{:.<{bar_width}}] {:>{num_width}}/{} ({}%)'
+        self.__pattern__ = '\r[{:-<{bar_width}}] {:>{num_width}}/{} ({}%)'
         self.__skip_count__ = 0
         self.__skip_pattern__ = ' - Skipped {}'
 
