@@ -15,6 +15,7 @@ from utils import module_trainer
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
+# noinspection DuplicatedCode
 if __name__ == '__main__':
     with open(sys.argv[1]) as f:
         config = yaml.load(f)
@@ -56,5 +57,5 @@ if __name__ == '__main__':
 
 
     trainer = module_trainer.ModuleTrainer(hw, optimizer, calculate_hw_train_loss, calculate_hw_evaluate_loss,
-                                           train_dataloader, eval_dataloader, checkpoint_filepath, loss_patience=0.6)
+                                           train_dataloader, eval_dataloader, checkpoint_filepath, loss_tolerance=0.6)
     trainer.train(stop_after_no_improvement=pretrain_config['sol']['stop_after_no_improvement'])
