@@ -45,17 +45,17 @@ if __name__ == '__main__':
         eval_dataset = LfDataset(eval_set_list, random_subset_size=train_config['lf']['validation_subset_size'])
         eval_dataloader = DataLoader(eval_dataset, batch_size=1, shuffle=False, num_workers=0,
                                      collate_fn=lf_dataset.collate)
-        hw_checkpoint = safe_load.load_checkpoint(hw_checkpoint_filepath)
-        hw = cnn_lstm.create_model(hw_network_config)
-        hw.load_state_dict(hw_checkpoint['model_state_dict'])
-        hw = hw.to(device)
-        hw.eval()
 
         def calculate_lf_train_loss(lf_model, input):
             return lf_loss_function.calculate(lf_model, input, dtype, device,
-                                              train=True, hw=hw, idx_to_char=idx_to_char)
+                                              train=True, hw=None, idx_to_char=idx_to_char)
 
         def calculate_lf_evaluate_loss(lf_model, input):
+            hw = cnn_lstm.create_model(hw_network_config)
+            hw_checkpoint = safe_load.load_checkpoint(hw_checkpoint_filepath)
+            hw.load_state_dict(hw_checkpoint['model_state_dict'])
+            hw = hw.to(device)
+            hw.eval()
             return lf_loss_function.calculate(lf_model, input, dtype, device,
                                               train=False, hw=hw, idx_to_char=idx_to_char)
 
