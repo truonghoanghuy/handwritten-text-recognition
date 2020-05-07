@@ -1,0 +1,3 @@
+python train.py --root data --train train --val test --alphabet char --imgW 2695 --imgH 32 --expr_dir snapshots --cuda
+
+python normalize_data.py crnn\data sample_config.yaml crnn\temp_data crnn\data

@@ -13,7 +13,7 @@ from e2e import e2e_postprocessing
 from e2e import visualization
 from hw import grid_distortion
 from utils import PAGE_xml
-from utils import lm_decoder
+# from utils import lm_decoder
 from utils.continuous_state import init_model
 
 
@@ -108,6 +108,7 @@ if __name__ == "__main__":
         # Postprocessing Steps
         out['idx'] = np.arange(out['sol'].shape[0])
         out = e2e_postprocessing.trim_ends(out)
+
         e2e_postprocessing.filter_on_pick(out, e2e_postprocessing.select_non_empty_string(out))
         out = e2e_postprocessing.postprocess(out,
                                              sol_threshold=config['post_processing']['sol_threshold'],

@@ -11,20 +11,20 @@ from e2e import e2e_postprocessing
 from e2e.e2e_model import E2EModel
 from utils.continuous_state import init_model
 
-if __name__ == '__main__':
 
-    image_path_directory = sys.argv[1]
+def process(image_path_directory_, config_path_, out_directory_):
+    image_path_directory = image_path_directory_
 
     image_paths = []
     for root, folder, files in os.walk(image_path_directory):
         for f in files:
-            if f.lower().endswith('.jpg') or f.lower().endswith('.png'):
+            if f.lower().endswith('.jpg') or f.lower().endswith('.png') or f.lower().endswith('.jpeg'):
                 image_paths.append(os.path.join(root, f))
 
-    with open(sys.argv[2]) as f:
+    with open(config_path_) as f:
         config = yaml.load(f)
 
-    output_directory = sys.argv[3]
+    output_directory = out_directory_
 
     char_set_path = config['network']['hw']['char_set_path']
     with open(char_set_path) as f:
@@ -99,3 +99,7 @@ if __name__ == '__main__':
 
         del img, full_img, out
         torch.cuda.empty_cache()
+
+
+if __name__ == '__main__':
+    process(sys.argv[1], sys.argv[2], sys.argv[3])

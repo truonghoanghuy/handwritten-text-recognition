@@ -6,7 +6,7 @@ import json
 
 
 def vnondb():
-    print('Processing for VNOBDB dataset')
+    print('Processing for VNONDB dataset')
     root_path = '../data'
     data_path = join(root_path, 'InkData_line_processed')
     target_data_path = 'data'
@@ -45,10 +45,17 @@ def cinnamon():
     target_data_path = 'data'
     if not os.path.exists(target_data_path):
         os.mkdir(target_data_path)
+
+    mode = 'w'
     train_file = join(target_data_path, 'train')
-    train_file = open(train_file, 'a')
+    if os.path.exists(train_file):
+        mode = 'a'
+    train_file = open(train_file, mode)
     test_file = join(target_data_path, 'test')
-    test_file = open(test_file, 'a')
+    mode = 'w'
+    if os.path.exists(test_file):
+        mode = 'a'
+    test_file = open(test_file, mode)
 
     def process_directory(source_path, target_file):
         with open(join(source_path, 'labels.json'), encoding='utf8') as f:
