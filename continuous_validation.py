@@ -176,7 +176,7 @@ def main():
                     no_improvement_count = 0
                     save_model(sol, lf, hw, config['training']['snapshot']['best_overall'])
                     best_cer = result['cer']
-                if no_improvement_count > config['training']['alignment']['stop_after_no_improvement']:
+                if no_improvement_count >= config['training']['alignment']['stop_after_no_improvement']:
                     return
 
 
