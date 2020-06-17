@@ -103,7 +103,7 @@ training:
       sol_thresholds: [0.1,0.3,0.5,0.7,0.9]
       lf_nms_ranges: [[0,6],[0,16],[0,20]]
       lf_nms_thresholds: [0.1,0.3,0.5,0.7,0.9]
-    stop_after_no_improvement: 10
+    stop_after_no_improvement: 9
 
   snapshot:
     best_overall: "data/snapshots/best_overall"
