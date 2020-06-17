@@ -37,8 +37,7 @@ class E2EModel(nn.Module):
         self.lf.eval()
         self.hw.eval()
 
-    def forward(self, x, use_full_img=True, sol_threshold=0.1, lf_batch_size=10):
-
+    def forward(self, x, use_full_img=True, sol_threshold=0.1, lf_batch_size=10, mode='hw'):
         resized_img: torch.Tensor = x['resized_img']
         resized_img = resized_img.to(self.device, self.dtype)
         if use_full_img:
@@ -122,7 +121,10 @@ class E2EModel(nn.Module):
                 line = (line + 1) * 128  # [-1, 1) -> [0, 256)
                 line_np = line.data.cpu().numpy()
                 line_images.append(line_np)
-            hw_pred = self.hw(line_batch)
+            if mode == 'hw':
+                hw_pred = self.hw(line_batch)
+            else:
+                hw_pred = self.hw(line_batch, x['len_label'])
             hw_out.append(hw_pred)
         hw_out = torch.cat(hw_out, dim=1)
         hw_out = hw_out.transpose(0, 1)

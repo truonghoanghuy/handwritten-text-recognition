@@ -2,8 +2,6 @@ import argparse
 import codecs
 import json
 import os
-from collections import defaultdict
-
 import cv2
 import numpy as np
 import torch
@@ -11,16 +9,10 @@ import yaml
 
 from e2e import e2e_postprocessing
 from e2e import visualization
-from hw import grid_distortion
 from utils import PAGE_xml
-# from utils import lm_decoder
 from utils.continuous_state import init_model
-
-
-def log_softmax(hw_in):
-    line_data = torch.from_numpy(hw_in)
-    softmax_out = torch.nn.functional.log_softmax(line_data, -1).data.numpy()
-    return softmax_out
+from utils.paragraph_processing import softmax, combine_lines_into_paragraph
+from utils import string_utils
 
 
 if __name__ == "__main__":
@@ -29,7 +21,8 @@ if __name__ == "__main__":
     parser.add_argument('npz_folder')
     parser.add_argument('--in_xml_folder')
     parser.add_argument('--out_xml_folder')
-    parser.add_argument('--lm', action='store_true')
+    parser.add_argument('--best_path', action='store_true')  # use best path decoding, default is beam search decoding
+    parser.add_argument('--combine', action='store_true')  # combine all lines in paragraph before decoding
     parser.add_argument('--aug', action='store_true')
     parser.add_argument('--roi', action='store_true')
     args = parser.parse_args()
@@ -47,12 +40,13 @@ if __name__ == "__main__":
                     basename = os.path.basename(f).replace(".xml", "")
                     in_xml_files[basename] = os.path.join(root, f)
 
-    use_lm = args.lm
+    use_best_path = args.best_path
+    combine_lines = args.combine
     use_aug = args.aug
     use_roi = args.roi
 
-    if use_lm:
-        from utils import lm_decoder
+    if not use_best_path:
+        from hw_vn.beam_search_with_lm import beam_search_with_lm
 
     with open(config_path) as f:
         config = yaml.load(f)
@@ -65,12 +59,14 @@ if __name__ == "__main__":
 
     char_set_path = config['network']['hw']['char_set_path']
 
-    with open(char_set_path) as f:
+    with open(char_set_path, encoding='utf8') as f:
         char_set = json.load(f)
 
     idx_to_char = {}
     for k, v in iter(char_set['idx_to_char'].items()):
         idx_to_char[int(k)] = v
+
+    char_to_idx = char_set['char_to_idx']
 
     decoder, hw = None, None
 
@@ -79,25 +75,7 @@ if __name__ == "__main__":
         _, _, hw = init_model(config, hw_dir=model_mode, only_load="hw")
         hw.eval()
 
-    if use_lm:
-        lm_params = config['network']['lm']
-        print("Loading LM")
-        decoder = lm_decoder.LMDecoder(idx_to_char, lm_params)
-        print("Done Loading LM")
-
-        print("Accumulating stats for LM")
-        for npz_path in sorted(npz_paths):
-            out = np.load(npz_path)
-            out = dict(out)
-            for o in out['hw']:
-                o = log_softmax(o)
-                decoder.add_stats(o)
-        print("Done accumulating stats for LM")
-    else:
-        print("Skip Loading LM")
-
     for npz_path in sorted(npz_paths):
-
         out = np.load(npz_path)
         out = dict(out)
 
@@ -124,67 +102,54 @@ if __name__ == "__main__":
         order = e2e_postprocessing.read_order(out)
         e2e_postprocessing.filter_on_pick(out, order)
 
-        # Decoding network output
         output_strings = []
+
+        # Decoding network output
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        if use_aug:
-            number_of_iterations = 20
-            for line_img in out['line_imgs']:
-                batch = []
-                for i in range(number_of_iterations):
-                    warped_image = grid_distortion.warp_image(line_img)
-                    batch.append(warped_image)
 
-                batch = np.array(batch)
-                batch = torch.from_numpy(batch).to(device)
-                batch = batch / 128.0 - 1.0
-                batch = batch.transpose(2, 3)
-                batch = batch.transpose(1, 2)
-                hw_out = hw(batch)
-                hw_out = hw_out.transpose(0, 1)
-                hw_out = hw_out.data.cpu().numpy()
+        space_idx = char_to_idx[' '] - 1
+        len_decoder = len(char_to_idx) + 1
 
-                if use_lm:
-                    decoded_hw = []
-                    for line in hw_out:
-                        log_softmax_line = log_softmax(line)
-                        lm_output = decoder.decode(log_softmax_line)[0]
-                        decoded_hw.append(lm_output)
-                else:
-                    decoded_hw, decoded_raw_hw = e2e_postprocessing.decode_handwriting({"hw": hw_out}, idx_to_char)
-
-                cnt_d = defaultdict(list)
-                for i, d in enumerate(decoded_hw):
-                    cnt_d[d].append(i)
-
-                cnt_d = dict(cnt_d)
-                sorted_list = list(sorted(cnt_d.items(), key=lambda x: len(x[1])))
-
-                best_idx = sorted_list[-1][1][0]
-                output_strings.append(decoded_hw[best_idx])
-
+        if use_best_path:
+            if combine_lines:
+                out['hw'] = combine_lines(out['hw'], space_idx, len_decoder)
+                pred, raw_pred = string_utils.naive_decode(out['hw'])
+                pred_str = string_utils.label2str_single(pred, idx_to_char, False)
+                output_strings.append(pred_str)
+            output_strings, decoded_raw_hw = e2e_postprocessing.decode_handwriting(out, idx_to_char)
         else:
-            if use_lm:
-                for line in out['hw']:
-                    log_softmax_line = log_softmax(line)
-                    lm_output = decoder.decode(log_softmax_line)[0]
-                    output_strings.append(lm_output)
+            paragraph = []
+            for line in out['hw']:
+                temp = np.copy(line[:, 0])
+                for i in range(0, len(line[0]) - 1):
+                    line[:, i] = line[:, i + 1]
+                line[:, len(line[0]) - 1] = temp
+                softmax_line = softmax(line)
+                paragraph.append(softmax_line)
+
+            if combine_lines:
+                paragraph = combine_lines_into_paragraph(paragraph, space_idx, len_decoder)
+                output_strings = [beam_search_with_lm(paragraph)]
             else:
-                output_strings, decoded_raw_hw = e2e_postprocessing.decode_handwriting(out, idx_to_char)
+                for line in paragraph:
+                    s = beam_search_with_lm(line)
+                    output_strings.append(s)
 
         draw_img = visualization.draw_output(out, org_img)
         cv2.imwrite(npz_path + ".png", draw_img)
 
         # Save results
         label_string = "_"
-        if use_lm:
-            label_string += "lm_"
+        if use_best_path:
+            label_string += "bestpath_"
+        else:
+            label_string += 'lm_'
         if use_aug:
             label_string += "aug_"
         filepath = npz_path + label_string + ".txt"
 
         with codecs.open(filepath, 'w', encoding='utf-8') as f:
-            f.write("\n".join(output_strings))
+            f.write(u'\n'.join(output_strings))
 
         key = os.path.basename(image_path)[:-len(".jpg")]
         if in_xml_folder:

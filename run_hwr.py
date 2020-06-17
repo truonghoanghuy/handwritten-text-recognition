@@ -9,10 +9,9 @@ import yaml
 
 from e2e import e2e_postprocessing
 from e2e.e2e_model import E2EModel
-from utils.continuous_state import init_model
 
 
-def process(image_path_directory_, config_path_, out_directory_):
+def process(image_path_directory_, config_path_, out_directory_, mode):
     image_path_directory = image_path_directory_
 
     image_paths = []
@@ -27,13 +26,12 @@ def process(image_path_directory_, config_path_, out_directory_):
     output_directory = out_directory_
 
     char_set_path = config['network']['hw']['char_set_path']
-    with open(char_set_path) as f:
+    with open(char_set_path, encoding='utf8') as f:
         char_set = json.load(f)
     idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
     char_to_idx = char_set['char_to_idx']
 
     model_mode = 'best_overall'
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=model_mode)
 
     e2e = E2EModel(sol, lf, hw)
@@ -42,6 +40,10 @@ def process(image_path_directory_, config_path_, out_directory_):
     for image_path in sorted(image_paths):
         org_img = cv2.imread(image_path)
         print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
+
+        txt_path = image_path.split('.')[0] + '.txt'
+        label = open(txt_path, encoding='utf8').read()
+        len_label = torch.tensor([len(label)])
 
         target_dim1 = 512
         s = target_dim1 / float(org_img.shape[1])
@@ -67,7 +69,8 @@ def process(image_path_directory_, config_path_, out_directory_):
         e2e_input = {
             'resized_img': img,
             'full_img': full_img,
-            'resize_scale': 1.0 / s
+            'resize_scale': 1.0 / s,
+            'len_label': len_label,
         }
         try:
             with torch.no_grad():
@@ -76,7 +79,7 @@ def process(image_path_directory_, config_path_, out_directory_):
             if 'CUDA out of memory' in str(e):
                 e2e.to_cpu()
                 with torch.no_grad():
-                    out = e2e.forward(e2e_input, lf_batch_size=100)
+                    out = e2e.forward(e2e_input, lf_batch_size=100, mode=mode)
                 e2e.to_cuda()
             else:
                 raise e
@@ -102,4 +105,9 @@ def process(image_path_directory_, config_path_, out_directory_):
 
 
 if __name__ == '__main__':
-    process(sys.argv[1], sys.argv[2], sys.argv[3])
+    if len(sys.argv) > 4 and sys.argv[4] == 'hw':
+        from utils.continuous_state import init_model
+        process(sys.argv[1], sys.argv[2], sys.argv[3], 'hw')
+    else:
+        from hw_vn.continuous_state import init_model
+        process(sys.argv[1], sys.argv[2], sys.argv[3], 'hw_vn')

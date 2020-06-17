@@ -1,24 +1,10 @@
 network:
-  sol:
-    base0: 16 # architecture dependant - don't change
-    base1: 16 # architecture dependant - don't change
-
-  lf:
-    batch_size: 30 # number of SOL points to be processed in each iteration
-
   hw:
-    num_of_outputs: 163
+    num_of_outputs: 161
     num_of_channels: 3
     cnn_out_size: 512   # architecture dependant
     input_height: 32    # architecture dependant
     char_set_path: "data/char_set_vn.json"
-
-  lm:
-    fst_path: "../hwn5-comp-2017/data/comp_lm/data/graph/HCLG.fst"
-    mdl_path: "../hwn5-comp-2017/data/comp_lm/data/lang_test/basic.mdl"
-    words_path: "../hwn5-comp-2017/data/comp_lm/data/graph/words.txt"
-    phones_path: "../hwn5-comp-2017/data/comp_lm/data/lang_test/phones.txt"
-    beam: 8
 
 training:
   training_set:
@@ -29,7 +15,7 @@ training:
   validation_set:
     img_folder: ""
     json_folder: ""
-    file_list: "data/hw_vn_test_set.json"
+    file_list: "data/hw_vn_validation_set.json"
 
   hw:
     learning_rate: 0.0002 # PyYAML bug: no scientific notation
@@ -49,10 +35,10 @@ training:
     stop_after_no_improvement: 10
 
   snapshot:
-    best_overall: "hw_vn/snapshots/best_overall"
-    best_validation: "hw_vn/snapshots/best_validation"
-    current: "hw_vn/snapshots/current"
-    pretrain: "hw_vn/snapshots/init"
+    best_overall: "models/hw_vn/snapshots"
+    best_validation: "models/hw_vn/checkpoints"
+    current: "models/hw_vn/snapshots/current"
+    pretrain: "models/hw_vn/snapshots/init"
 
 post_processing:
   sol_threshold: 0.1

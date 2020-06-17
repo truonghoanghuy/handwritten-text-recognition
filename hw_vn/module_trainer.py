@@ -22,7 +22,8 @@ class ModuleTrainer:
                  train_loss_func: Callable[[Module, Any], Tensor],
                  evaluate_loss_func: Callable[[Module, Any], Tensor],
                  train_dataloader: DatasetWrapper, eval_dataloader: DataLoader,
-                 checkpoint_filepath: str, loss_patience: float = np.inf):
+                 checkpoint_file_path: str, model_file_path: str,
+                 loss_patience: float = 0.1):
         """train_loss_func, evaluate_loss_func: (model, input) -> batch loss"""
 
         self.model = model
@@ -31,18 +32,17 @@ class ModuleTrainer:
         self.evaluate_loss_func = evaluate_loss_func
         self.train_dataloader = train_dataloader
         self.eval_dataloader = eval_dataloader
-        self.checkpoint_filepath = checkpoint_filepath
+        self.checkpoint_file_path = checkpoint_file_path
+        self.model_file_path = model_file_path
         self.loss_patience = loss_patience
 
-    def train(self, resume=False, continuous_training=False,
-              max_iter=1000, stop_after_no_improvement=10):
+    def train(self, resume=False, max_iter=1000, stop_after_no_improvement=20):
         """
         Start the train process
 
         :param resume: reuse the loss, epoch count, train time read from checkpoint if exists
-        :param continuous_training: true if the train process is continuous
         :param max_iter: maximum number of the (train, evaluate) steps
-        :param stop_after_no_improvement: early stopping. only if `continuous_flag_filepath` is None
+        :param stop_after_no_improvement: early stopping. only if `continuous_flag_file_path` is None
         :return: None
         """
 
@@ -53,16 +53,18 @@ class ModuleTrainer:
         print(f'Training set size: {self.train_dataloader.epoch_steps} batch(es) x {self.train_dataloader.batch_size} '
               f'sample(s)/batch')
 
-        # Load checkpoint to continue training if exists
-        checkpoint = safe_load.load_checkpoint(self.checkpoint_filepath)
-        if checkpoint is not None:
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            if resume:  # reuse loss
+        # Load checkpoint to continue training if exists and resume is True
+        if resume:
+            checkpoint = safe_load.load_checkpoint(self.checkpoint_file_path)
+            if checkpoint is not None:
+                self.model.load_state_dict(checkpoint['model_state_dict'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 self.train_dataloader.epoch = checkpoint['epoch']
                 lowest_loss = checkpoint['loss']
                 total_time = checkpoint['total_time']
-            print('Continue training')
+                print('Continue training [resume mode]')
+            else:
+                print('Can not load checkpoint to resume the training. Training from scratch is alternative.')
 
         for view_epoch in range(max_iter):
             start_time = time.time()
@@ -103,7 +105,7 @@ class ModuleTrainer:
                 if phase == 'train':
                     print(f'Train loss = {avg_loss}, Time elapsed: {total_time}, Last epoch time: {phase_time}')
                 else:
-                    print(f'Eval loss = {avg_loss}, Current best loss = {lowest_loss}')
+                    print(f'Eval loss (CER) = {avg_loss}, Current best loss (CER) = {lowest_loss}')
                     no_improvement_count += 1
                     if avg_loss < lowest_loss:
                         no_improvement_count = 0
@@ -115,10 +117,7 @@ class ModuleTrainer:
                             'epoch': self.train_dataloader.epoch,
                             'loss': lowest_loss,
                             'total_time': total_time
-                        }, self.checkpoint_filepath)
-                    if continuous_training:
-                        if not ContinuousTrainingUtil.is_running():
-                            return
-                    else:
-                        if no_improvement_count >= stop_after_no_improvement and lowest_loss < self.loss_patience:
-                            return
+                        }, self.checkpoint_file_path)
+                        torch.save(self.model.state_dict(), self.model_file_path)
+                    if no_improvement_count > stop_after_no_improvement and lowest_loss < self.loss_patience:
+                        return
