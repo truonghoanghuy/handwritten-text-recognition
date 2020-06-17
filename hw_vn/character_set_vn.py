@@ -39,10 +39,6 @@ if __name__ == "__main__":
                     cnt += 1
                 char_freq[c] += 1
 
-    # Dataset line level lacks a character 'Z'
-    if 'Z' not in out_char_to_idx:
-        out_char_to_idx['Z'] = 1
-
     out_char_to_idx2 = {}
     out_idx_to_char2 = {}
 

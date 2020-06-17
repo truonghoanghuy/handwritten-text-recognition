@@ -11,7 +11,7 @@ from hw_vn import cnn_lstm
 from hw_vn import hw_dataset
 from hw_vn import hw_loss_function
 from hw_vn.hw_dataset import HwDataset
-from utils import module_trainer
+from hw_vn import module_trainer
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
@@ -26,7 +26,8 @@ if __name__ == '__main__':
     idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
     train_config = config['training']
     batches_per_epoch = int(train_config['hw']['images_per_epoch'] / train_config['hw']['batch_size'])
-    checkpoint_filepath = os.path.join(train_config['snapshot']['best_validation'], 'hw_vn_checkpoint.pt')
+    checkpoint_file_path = os.path.join(train_config['snapshot']['best_validation'], 'hw_vn_checkpoint.pt')
+    model_file_path = os.path.join(train_config['snapshot']['best_overall'], 'hw_vn.pt')
 
     train_set_list = load_file_list(train_config['training_set'])
     train_dataset = HwDataset(train_set_list, char_set['char_to_idx'], augmentation=True,
@@ -57,6 +58,6 @@ if __name__ == '__main__':
 
 
     trainer = module_trainer.ModuleTrainer(hw, optimizer, calculate_hw_train_loss, calculate_hw_evaluate_loss,
-                                           train_dataloader, eval_dataloader, checkpoint_filepath)
+                                           train_dataloader, eval_dataloader, checkpoint_file_path, model_file_path)
     resume = 'resume' in sys.argv
-    trainer.train(resume=resume, continuous_training=True)
+    trainer.train(resume=resume)

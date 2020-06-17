@@ -127,7 +127,7 @@ def alignment_step(config, idx_to_char, loader, is_validation_set=True, baseline
 def main():
     init_mode = 'init' in sys.argv
     config_path = sys.argv[1]
-    with open(config_path) as f:
+    with open(config_path, encoding='utf8') as f:
         config = yaml.load(f)
     char_set_path = config['network']['hw']['char_set_path']
     with open(char_set_path) as f:

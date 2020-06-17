@@ -59,10 +59,13 @@ def trim_ends(out):
     return out
 
 
-def filter_on_pick(out, pick):
+def filter_on_pick(out, pick, pick_line_imgs=False):
     out['sol'] = out['sol'][pick]
     out['lf'] = [li[pick] for li in out['lf']]
     out['hw'] = out['hw'][pick]
+    if pick_line_imgs:
+        out['line_imgs'] = out['line_imgs'][pick]
+
     if 'idx' in out:
         out['idx'] = out['idx'][pick]
     if 'beginning' in out:
@@ -87,7 +90,7 @@ def select_non_empty_string(out):
     return np.where(selected.sum(axis=1) != 0)
 
 
-def postprocess(out, **kwargs):
+def postprocess(out, pick_line_imgs=False, **kwargs):
     out = copy.copy(out)
 
     # postprocessing should be done with numpy data
@@ -98,7 +101,7 @@ def postprocess(out, **kwargs):
 
     if sol_threshold is not None:
         pick = np.where(out['sol'][:, -1] > sol_threshold)
-        filter_on_pick(out, pick)
+        filter_on_pick(out, pick, pick_line_imgs=pick_line_imgs)
 
     if sol_nms_threshold is not None:
         raise Exception("This is not correct")
@@ -114,14 +117,14 @@ def postprocess(out, **kwargs):
         lf_setup = [lf_setup[:, i] for i in range(lf_setup.shape[1])]
 
         pick = nms.lf_non_max_suppression_area(lf_setup, confidences, overlap_range, overlap_thresh)
-        filter_on_pick(out, pick)
+        filter_on_pick(out, pick, pick_line_imgs=pick_line_imgs)
 
     if lf_nms_2_params is not None:
         confidences = out['sol'][:, -1]
         overlap_thresh = lf_nms_2_params['overlap_threshold']
         refined_lf = get_trimmed_polygons(out)
         pick = nms.lf_non_max_suppression_area(refined_lf, confidences, None, overlap_thresh)
-        filter_on_pick(out, pick)
+        filter_on_pick(out, pick, pick_line_imgs=pick_line_imgs)
 
     return out
 

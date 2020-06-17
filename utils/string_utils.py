@@ -61,3 +61,8 @@ def naive_decode(output):
         if rawPredData[i] != 0 and not (i > 0 and rawPredData[i] == rawPredData[i - 1]):
             predData.append(rawPredData[i])
     return predData, list(rawPredData)
+
+
+def remove_consecutive_space(s):
+    s = s.strip(' ')
+    return s.replace('  ', ' ')

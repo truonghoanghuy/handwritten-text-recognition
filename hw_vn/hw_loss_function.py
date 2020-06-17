@@ -12,7 +12,7 @@ def calculate_hw_loss(hw_model: Module, input, dtype: torch.dtype, device: torch
     labels = input['labels']  # type: torch.Tensor
     label_lengths = input['label_lengths']  # type: torch.Tensor
     line_imgs = line_imgs.to(device, dtype)
-    predicts: torch.Tensor = hw_model(line_imgs).cpu()  # predicts size: (input_length, batch_size, num_classes)
+    predicts: torch.Tensor = hw_model(line_imgs, label_lengths).cpu()  # predicts size: (input_length, batch_size, num_classes)
     if train:
         inputs = functional.log_softmax(predicts, dim=2)
         input_length, batch_size, _ = predicts.size()

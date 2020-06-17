@@ -1,0 +1,3 @@
+python hw_vn\get_data.py data\hw_vn_training_set.json data\InkData_line_processed\train data\cinnamon_sample_data_1 data\cinnamon_sample_data_2
+
+python hw_vn\get_data.py data\hw_vn_test_set.json data\InkData_line_processed\validation data\cinnamon_private_test

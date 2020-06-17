@@ -165,7 +165,7 @@ def handle_single_image(xml_path, img_path, output_directory):
         # with codecs.open(xml_path, encoding='utf-8') as f:
         #     xml_string_data = f.read()
 
-        with open(xml_path) as f:
+        with open(xml_path, encoding='utf-8') as f:
             xml_string_data = f.read()
 
         # Parse invalid xml data

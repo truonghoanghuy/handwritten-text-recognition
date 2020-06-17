@@ -1,15 +1,108 @@
+
+# Created by https://www.gitignore.io/api/c,c++,code,python
+# Edit at https://www.gitignore.io/?templates=c,c++,code,python
+
+.session.vim
+kenlm
+openfst-1.6.3
+ThreadPool
+*.arpa
+*.binary
+*.tar.gz
+*.cxx
+swig_decoders.py
+
+### C ###
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+### C++ ###
+# Prerequisites
+
+# Compiled Object files
+*.slo
+
+# Precompiled Headers
+
+# Compiled Dynamic libraries
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+
+# Executables
+
+### Code ###
+.vscode
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
 # C extensions
-*.so
 
 # Distribution / packaging
 .Python
 build/
-data/
 develop-eggs/
 dist/
 downloads/
@@ -48,23 +141,12 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-*.py,cover
 .hypothesis/
 .pytest_cache/
 
 # Translations
 *.mo
 *.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
 
 # Scrapy stuff:
 .scrapy
@@ -74,13 +156,6 @@ docs/_build/
 
 # PyBuilder
 target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
 
 # pyenv
 .python-version
@@ -92,24 +167,11 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
+# celery beat schedule file
 celerybeat-schedule
-celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
 # Spyder project settings
 .spyderproject
@@ -117,6 +179,11 @@ venv.bak/
 
 # Rope project settings
 .ropeproject
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
 
 # mkdocs documentation
 /site
@@ -129,17 +196,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# PyCharm
-.idea/
-
-#From SFR project
-warp-ctc
-pykaldi
-*.pyc
-*.png
-*.jpg
-/text-region-labeling/out/
-text-region-labeling/.idea/
-models/
-input/
-output/
+# End of https://www.gitignore.io/api/c,c++,code,python
