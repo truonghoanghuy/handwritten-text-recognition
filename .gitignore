@@ -141,3 +141,5 @@ pykaldi
 /text-region-labeling/out/
 text-region-labeling/.idea/
 models/
+input/
+output/

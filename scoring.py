@@ -9,7 +9,6 @@ import argparse
 from e2e import e2e_postprocessing
 from utils import error_rates, string_utils, printer
 from utils.paragraph_processing import softmax, combine_lines_into_paragraph
-from hw_vn.beam_search_with_lm import beam_search_with_lm
 
 
 parser = argparse.ArgumentParser()
@@ -53,7 +52,7 @@ for npz_path in sorted(npz_paths):
     path = str(out['image_path']).replace('\\', '/')
     name_file = os.path.basename(os.path.normpath(path)).split('.')[0]
     name_txt = name_file + '.txt'
-    with open(os.path.join(os.path.dirname(os.path.normpath(path)), name_txt)) as f:
+    with open(os.path.join(os.path.dirname(os.path.normpath(path)), name_txt), encoding='utf8') as f:
         ground_truth_hw.append(u' '.join(f.readlines()))
 
     # Postprocessing Steps
@@ -78,14 +77,15 @@ beta = 1
 
 for u in range(len(paragraphs_hw)):
     paragraphs = paragraphs_hw[u]
-    for v in range(len(paragraphs)):
-        line = paragraphs[v]
-        temp = np.copy(line[:, 0])
-        for i in range(0, len(line[0]) - 1):
-            line[:, i] = line[:, i + 1]
-        line[:, len(line[0]) - 1] = temp
-        softmax_line = softmax(line)
-        paragraphs[v] = softmax_line
+    if not use_best_path:
+        for v in range(len(paragraphs)):
+            line = paragraphs[v]
+            temp = np.copy(line[:, 0])
+            for i in range(0, len(line[0]) - 1):
+                line[:, i] = line[:, i + 1]
+            line[:, len(line[0]) - 1] = temp
+            softmax_line = softmax(line)
+            paragraphs[v] = softmax_line
 
     if combine_lines:
         space_idx = char_to_idx[' '] - 1
@@ -110,9 +110,12 @@ for i in range(len(paragraphs_hw)):
             pred, raw_pred = string_utils.naive_decode(paragraph)
             script = string_utils.label2str_single(pred, idx_to_char, False)
         else:
-            output_strings, _ = e2e_postprocessing.decode_handwriting({'hw', np.array(paragraph)}, idx_to_char)
+            param = {'hw': np.array(paragraph)}
+            output_strings, _ = e2e_postprocessing.decode_handwriting(param, idx_to_char)
             script = u' '.join(output_strings)
     else:
+        from hw_vn.beam_search_with_lm import beam_search_with_lm
+
         if combine_lines:
             script = beam_search_with_lm(paragraph)
         else:

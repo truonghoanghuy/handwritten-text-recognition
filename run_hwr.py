@@ -9,6 +9,7 @@ import yaml
 
 from e2e import e2e_postprocessing
 from e2e.e2e_model import E2EModel
+from utils.printer import ProgressBarPrinter
 
 
 def process(image_path_directory_, config_path_, out_directory_, mode):
@@ -24,6 +25,8 @@ def process(image_path_directory_, config_path_, out_directory_, mode):
         config = yaml.load(f)
 
     output_directory = out_directory_
+    if not os.path.exists(output_directory):
+        os.mkdir(output_directory)
 
     char_set_path = config['network']['hw']['char_set_path']
     with open(char_set_path, encoding='utf8') as f:
@@ -37,9 +40,11 @@ def process(image_path_directory_, config_path_, out_directory_, mode):
     e2e = E2EModel(sol, lf, hw)
     e2e.eval()
 
+    progress_bar = ProgressBarPrinter(len(image_paths))
+    progress_bar.start()
     for image_path in sorted(image_paths):
         org_img = cv2.imread(image_path)
-        print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
+        # print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
 
         txt_path = image_path.split('.')[0] + '.txt'
         label = open(txt_path, encoding='utf8').read()
@@ -74,7 +79,7 @@ def process(image_path_directory_, config_path_, out_directory_, mode):
         }
         try:
             with torch.no_grad():
-                out = e2e.forward(e2e_input)
+                out = e2e.forward(e2e_input, mode=mode)
         except RuntimeError as e:
             if 'CUDA out of memory' in str(e):
                 e2e.to_cpu()
@@ -102,6 +107,7 @@ def process(image_path_directory_, config_path_, out_directory_, mode):
 
         del img, full_img, out
         torch.cuda.empty_cache()
+        progress_bar.step()
 
 
 if __name__ == '__main__':
