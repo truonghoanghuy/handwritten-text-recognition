@@ -45,7 +45,7 @@ class ModuleTrainer:
         :param resume: fully reuse the saved checkpoint (including loss, epoch count, train time) if loaded
         :param continuous_training: True in continuous training mode, the aligned dataset will be reloaded each epoch
         :param max_iter: maximum number of the (train, evaluate) steps
-        :param stop_after_no_improvement: early stopping. only if continuous_training is None
+        :param stop_after_no_improvement: early stopping. only if continuous_training is not True
         :return: None
         """
 

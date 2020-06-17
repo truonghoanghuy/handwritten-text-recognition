@@ -1,0 +1,117 @@
+network:
+  sol:
+    base0: 16 # architecture dependant - don't change
+    base1: 16 # architecture dependant - don't change
+
+  lf:
+    batch_size: 30 # number of SOL points to be processed in each iteration
+
+  hw:
+    num_of_outputs: 161
+    num_of_channels: 3
+    cnn_out_size: 512   # architecture dependant
+    input_height: 32    # architecture dependant
+    char_set_path: "data/char_set_vn.json"
+
+  lm:
+    fst_path: "../hwn5-comp-2017/data/comp_lm/data/graph/HCLG.fst"
+    mdl_path: "../hwn5-comp-2017/data/comp_lm/data/lang_test/basic.mdl"
+    words_path: "../hwn5-comp-2017/data/comp_lm/data/graph/words.txt"
+    phones_path: "../hwn5-comp-2017/data/comp_lm/data/lang_test/phones.txt"
+    beam: 8
+
+pretraining:
+  training_set:
+    img_folder: ""
+    json_folder: ""
+    file_list: "data/train_a_training_set.json"
+
+  validation_set:
+    img_folder: ""
+    json_folder: ""
+    file_list: "data/train_a_validation_set.json"
+
+  sol:
+    alpha_alignment: 0.1
+    alpha_backprop: 0.1
+    learning_rate: 0.0001 # PyYAML bug: no scientific notation
+    crop_params:
+      prob_label: 0.5
+      crop_size: 256
+    training_rescale_range: [384,640]
+    validation_rescale_range: [512,512] # Don't validate on random range
+    batch_size: 1 # During pre-train, only 45 images. If batch is 32 you would get 32 and 13 in an epoch
+    images_per_epoch: 1000
+    stop_after_no_improvement: 10
+
+  lf:
+    learning_rate: 0.0001 # PyYAML bug: no scientific notation
+    batch_size: 1
+    images_per_epoch: 1000
+    stop_after_no_improvement: 10
+
+  hw:
+    learning_rate: 0.0002 # PyYAML bug: no scientific notation
+    batch_size: 8
+    images_per_epoch: 1000
+    stop_after_no_improvement: 10
+
+  snapshot_path: "data/snapshots/init"
+
+training:
+  training_set:
+    img_folder: ""
+    json_folder: ""
+    file_list: "data/train_b_training_set.json"
+
+  validation_set:
+    img_folder: ""
+    json_folder: ""
+    file_list: "data/train_b_validation_set.json"
+
+  sol:
+    alpha_alignment: 0.1
+    alpha_backprop: 0.1
+    learning_rate: 0.0001 # PyYAML bug: no scientific notation
+    crop_params:
+      prob_label: 0.5
+      crop_size: 256
+    training_rescale_range: [384,640]
+    validation_rescale_range: [512,512] # You should not validation on random range
+    validation_subset_size: 1000
+    batch_size: 1
+    images_per_epoch: 10000
+
+  lf:
+    learning_rate: 0.0001 # PyYAML bug: no scientific notation
+    batch_size: 1
+    images_per_epoch: 1000
+    validation_subset_size: 100 # images
+
+  hw:
+    learning_rate: 0.0002 # PyYAML bug: no scientific notation
+    batch_size: 4
+    images_per_epoch: 10000 # batches
+    validation_subset_size: 2000 # images
+
+  alignment:
+    accept_threshold: 0.1
+    sol_resize_width: 512
+    metric: "cer"
+    validate_after: 1000
+    validation_post_processing:
+      sol_thresholds: [0.1,0.3,0.5,0.7,0.9]
+      lf_nms_ranges: [[0,6],[0,16],[0,20]]
+      lf_nms_thresholds: [0.1,0.3,0.5,0.7,0.9]
+    stop_after_no_improvement: 10
+
+  snapshot:
+    best_overall: "data/snapshots/best_overall"
+    best_validation: "data/snapshots/best_validation"
+    current: "data/snapshots/current"
+    pretrain: "data/snapshots/init"
+
+post_processing:
+  sol_threshold: 0.1
+  lf_nms_range: [0,16]
+  lf_nms_threshold: 0.7
