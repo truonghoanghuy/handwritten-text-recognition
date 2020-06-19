@@ -1,15 +1,15 @@
-import sys
 import yaml
-import os
-import json
-import numpy as np
-import time
 import argparse
+import json
+import os
+import time
+
+import numpy as np
+import yaml
 
 from e2e import e2e_postprocessing
 from utils import error_rates, string_utils, printer
 from utils.paragraph_processing import softmax, combine_lines_into_paragraph
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('config_path')
@@ -125,8 +125,8 @@ for i in range(len(paragraphs_hw)):
                 output_string.append(res)
             script = u' '.join(output_string)
 
-    cer.append(error_rates.cer(script, ground_truth_hw[i]))
-    wer.append(error_rates.wer(script, ground_truth_hw[i]))
+    cer.append(error_rates.cer(ground_truth_hw[i], script))
+    wer.append(error_rates.wer(ground_truth_hw[i], script))
     process_bar.step()
 cer = sum(cer) / len(cer)
 wer = sum(wer) / len(wer)
