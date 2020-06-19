@@ -7,15 +7,18 @@ from sol.start_of_line_finder import StartOfLineFinder
 from utils import safe_load
 
 
-def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='best_overall', only_load=None):
+def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='best_overall',
+               only_load=None, use_cpu=False):
     base_0 = config['network']['sol']['base0']
     base_1 = config['network']['sol']['base1']
 
     sol = None
     lf = None
     hw = None
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print('You are using {} device'.format(device))
+    if use_cpu:
+        device = 'cpu'
+    else:
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     if only_load is None or only_load == 'sol' or 'sol' in only_load:
         sol = StartOfLineFinder(base_0, base_1)
@@ -75,7 +78,7 @@ def load_model_from_checkpoint(network_config, checkpoint_dir):
 
     hw_path = os.path.join(checkpoint_dir, 'hw_checkpoint.pt')
     hw_checkpoint = safe_load.load_checkpoint(hw_path)
-    hw = cnn_lstm.create_model(network_config['hw'])
+    hw = cnn_lstm_1_attention.create_model(network_config['hw'])
     hw.load_state_dict(hw_checkpoint['model_state_dict'])
     hw = hw.to(device)
     hw.eval()

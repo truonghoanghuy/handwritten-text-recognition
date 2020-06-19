@@ -6,14 +6,17 @@ from torch import nn
 
 
 class E2EModel(nn.Module):
-    def __init__(self, sol, lf, hw, dtype=torch.float32):
+    def __init__(self, sol, lf, hw, dtype=torch.float32, use_cpu=False):
         super().__init__()
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.dtype = dtype
         self.sol = sol
         self.lf = lf
         self.hw = hw
-        self.to_cuda()
+        if not use_cpu:
+            self.to_cuda()
+        else:
+            self.to_cpu()
 
     def to_cuda(self):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')

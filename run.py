@@ -10,7 +10,7 @@ import yaml
 
 from e2e import e2e_postprocessing, visualization
 from e2e.e2e_model import E2EModel
-from utils import continuous_state
+from hw_vn import continuous_state
 
 
 def adaptive_binary_gaussian(img, constant=10):
