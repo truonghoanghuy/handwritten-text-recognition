@@ -1,4 +1,3 @@
-import os
 import random
 
 import cv2
@@ -6,8 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from hw import grid_distortion
-from utils import string_utils, safe_load, augmentation
+from utils import string_utils, augmentation
 
 PADDING_CONSTANT = 0
 
@@ -51,7 +49,7 @@ def collate(batch):
 
 
 class HwDataset(Dataset):
-    def __init__(self, set_list, char_to_idx, augmentation=False, img_height=32, random_subset_size=None):
+    def __init__(self, set_list, char_to_idx, augment=False, img_height=32, random_subset_size=None):
 
         self.img_height = img_height
 
@@ -62,8 +60,11 @@ class HwDataset(Dataset):
             self.ids = random.sample(self.ids, min(random_subset_size, len(self.ids)))
 
         self.char_to_idx = char_to_idx
-        self.augmentation = augmentation
+        self.augmentation = augment
         self.warning = False
+
+        if self.augmentation:
+            self.augmenter = augmentation.HwAugmenter()
 
     def __len__(self):
         return len(self.ids)
@@ -90,9 +91,7 @@ class HwDataset(Dataset):
             return None
 
         if self.augmentation:
-            img = augmentation.apply_random_color_rotation(img)
-            img = augmentation.apply_tensmeyer_brightness(img)
-            img = grid_distortion.warp_image(img)
+            img = self.augmenter(img)
 
         img = img.astype(np.float32)
         img = img / 128.0 - 1.0

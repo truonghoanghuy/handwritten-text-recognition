@@ -1,14 +1,23 @@
 import os
 import torch
 
-from hw_vn import cnn_lstm
 from lf.line_follower import LineFollower
 from sol.start_of_line_finder import StartOfLineFinder
 from utils import safe_load
 
+hwr_model = None
 
-def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='best_overall',
+
+def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='best_overall', hw_model='cnn_lstm',
                only_load=None, use_cpu=False):
+    global hwr_model
+    if hw_model == 'cnn_lstm':
+        from hw_vn import cnn_lstm
+        hwr_model = cnn_lstm
+    elif hw_model == 'cnn_lstm_1_attention':
+        from hw_vn import cnn_lstm_1_attention
+        hwr_model = cnn_lstm_1_attention
+
     base_0 = config['network']['sol']['base0']
     base_1 = config['network']['sol']['base1']
 
@@ -49,7 +58,7 @@ def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='be
         lf = lf.to(device)
 
     if only_load is None or only_load == 'hw' or 'hw' in only_load:
-        hw = cnn_lstm.create_model(config['network']['hw'])
+        hw = hwr_model.create_model(config['network']['hw'])
         hw_state = safe_load.torch_state(os.path.join(config['training']['snapshot'][hw_dir], 'hw.pt'))
         hw.load_state_dict(hw_state)
         hw = hw.to(device)
@@ -78,7 +87,7 @@ def load_model_from_checkpoint(network_config, checkpoint_dir):
 
     hw_path = os.path.join(checkpoint_dir, 'hw_checkpoint.pt')
     hw_checkpoint = safe_load.load_checkpoint(hw_path)
-    hw = cnn_lstm_1_attention.create_model(network_config['hw'])
+    hw = hwr_model.create_model(network_config['hw'])
     hw.load_state_dict(hw_checkpoint['model_state_dict'])
     hw = hw.to(device)
     hw.eval()

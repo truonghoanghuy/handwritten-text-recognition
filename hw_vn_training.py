@@ -30,7 +30,7 @@ if __name__ == '__main__':
     model_file_path = os.path.join(train_config['snapshot']['best_overall'], 'hw_vn.pt')
 
     train_set_list = load_file_list(train_config['training_set'])
-    train_dataset = HwDataset(train_set_list, char_set['char_to_idx'], augmentation=True,
+    train_dataset = HwDataset(train_set_list, char_set['char_to_idx'], augment=True,
                               img_height=hw_network_config['input_height'])
     train_dataloader = DataLoader(train_dataset, batch_size=train_config['hw']['batch_size'], shuffle=False,
                                   num_workers=0, collate_fn=hw_dataset.collate)

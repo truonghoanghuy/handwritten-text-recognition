@@ -94,7 +94,7 @@ class SelfAttention(nn.Module):
         else:
             self.non_linearity = nn.Tanh()
 
-        init.uniform(self.attention_weights.data, -0.005, 0.005)
+        init.uniform_(self.attention_weights.data, -0.005, 0.005)
 
     def get_mask(self, attentions, lengths):
         """
