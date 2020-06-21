@@ -7,11 +7,11 @@ import yaml
 from torch import nn
 from torch.utils.data import DataLoader
 
-from hw_vn import cnn_lstm_1_attention
+from hw_vn import cnn_lstm_2_attentions
 from hw_vn import hw_dataset
 from hw_vn import hw_loss_function
-from hw_vn.hw_dataset import HwDataset
 from hw_vn import module_trainer
+from hw_vn.hw_dataset import HwDataset
 from utils.dataset_parse import load_file_list
 from utils.dataset_wrapper import DatasetWrapper
 
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     dtype = torch.float32
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    hw = cnn_lstm_1_attention.create_model(hw_network_config).to(device)
+    hw = cnn_lstm_2_attentions.create_model(hw_network_config).to(device)
     optimizer = torch.optim.Adam(hw.parameters(), lr=train_config['hw']['learning_rate'])
     criterion = nn.CTCLoss(reduction='sum', zero_infinity=True)
 
