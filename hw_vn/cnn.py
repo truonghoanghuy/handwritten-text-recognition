@@ -4,6 +4,7 @@ from torch import nn, Tensor
 class CNN(nn.Module):
     def __init__(self, num_channel, leaky_relu=False):
         super().__init__()
+
         kernel_size = [3, 3, 3, 3, 3, 3, 2]
         padding = [1, 1, 1, 1, 1, 1, 0]
         stride = [1, 1, 1, 1, 1, 1, 1]
@@ -34,6 +35,8 @@ class CNN(nn.Module):
         conv_relu(5)
         cnn.add_module(f'pooling{3}', nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 512x2x16
         conv_relu(6, batch_normalization=True)  # 512x1x16
+
+        self.cnn = cnn
 
     def forward(self, input: Tensor):
         conv = self.cnn(input.contiguous())

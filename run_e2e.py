@@ -13,6 +13,7 @@ from utils import error_rates, string_utils
 from utils.paragraph_processing import softmax, combine_lines_into_paragraph
 from utils.printer import ProgressBarPrinter
 from hw_vn.continuous_state import init_model
+from line_extractor import get_lines
 
 
 parser = argparse.ArgumentParser()
@@ -20,7 +21,7 @@ parser.add_argument('--config', default='e2e_config.yaml', type=str, help='The Y
 parser.add_argument('--input', default='data/InkData_paragraph_processed/test', type=str,
                     help='Path to the input directory.')
 parser.add_argument('--output', default='data/output', type=str, help='Path to the output directory.')
-parser.add_argument('--model', default='cnn_lstm_1_attention', help='HWR model used')
+parser.add_argument('--model', default='cnn_attention_lstm', help='HWR model used')
 parser.add_argument('--best_path', action='store_true',
                     help='Use best path decoding, default is using beam search decoding with language model.')
 parser.add_argument('--combine', action='store_true',
@@ -81,78 +82,15 @@ progress_bar = ProgressBarPrinter(len(image_paths))
 progress_bar.start()
 start_time = time.time()
 for image_path in sorted(image_paths):
-    org_img = cv2.imread(image_path)
-    # print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
-
-    txt_path = image_path.split('.')[0] + '.txt'
-    label = open(txt_path, encoding='utf8').read()
-    len_label = torch.tensor([len(label)])
-
-    target_dim1 = 512
-    s = target_dim1 / float(org_img.shape[1])
-
-    pad_amount = 128
-    org_img = np.pad(org_img, ((pad_amount, pad_amount), (pad_amount, pad_amount), (0, 0)), 'constant',
-                     constant_values=255)
-
-    target_dim0 = int(org_img.shape[0] * s)
-    target_dim1 = int(org_img.shape[1] * s)
-
-    full_img = org_img.astype(np.float32)
-    full_img = full_img.transpose([2, 1, 0])[None, ...]
-    full_img = torch.from_numpy(full_img)
-    full_img = full_img / 128 - 1
-
-    img = cv2.resize(org_img, (target_dim1, target_dim0), interpolation=cv2.INTER_CUBIC)
-    img = img.astype(np.float32)
-    img = img.transpose([2, 1, 0])[None, ...]
-    img = torch.from_numpy(img)
-    img = img / 128 - 1
-
-    e2e_input = {
-        'resized_img': img,
-        'full_img': full_img,
-        'resize_scale': 1.0 / s,
-        'len_label': len_label,
-    }
-    try:
-        with torch.no_grad():
-            out = e2e.forward(e2e_input, mode=mode)
-    except RuntimeError as e:
-        if 'CUDA out of memory' in str(e):
-            e2e.to_cpu()
-            with torch.no_grad():
-                out = e2e.forward(e2e_input, lf_batch_size=100, mode=mode)
-            e2e.to_cuda()
-        else:
-            raise e
-    out = e2e_postprocessing.results_to_numpy(out)
-
-    if out is None:
-        print('No results for image \"{}\"'.format(image_path))
-        continue
-
     name_file = os.path.basename(os.path.normpath(image_path)).split('.')[0]
     name_txt = name_file + '.txt'
     with open(os.path.join(os.path.dirname(os.path.normpath(image_path)), name_txt), encoding='utf8') as f:
         ground_truth = u' '.join(f.readlines())
 
-    # Postprocessing Steps
-    out['idx'] = np.arange(out['sol'].shape[0])
-    out = e2e_postprocessing.trim_ends(out)
+    org_img = cv2.imread(image_path)
+    out = get_lines(image_path, e2e, config, mode='hw_vn', do_hw=True)
 
-    e2e_postprocessing.filter_on_pick(out, e2e_postprocessing.select_non_empty_string(out))
-    out = e2e_postprocessing.postprocess(out,
-                                         sol_threshold=config['post_processing']['sol_threshold'],
-                                         lf_nms_params={
-                                             "overlap_range": config['post_processing']['lf_nms_range'],
-                                             "overlap_threshold": config['post_processing']['lf_nms_threshold']
-                                         }
-                                         )
-    order = e2e_postprocessing.read_order(out)
-    e2e_postprocessing.filter_on_pick(out, order)
     paragraph = out['hw']
-
     if not use_best_path:
         for v in range(len(paragraph)):
             line = paragraph[v]
@@ -205,7 +143,7 @@ for image_path in sorted(image_paths):
         cer.append(error_rates.cer(ground_truth, script))
         wer.append(error_rates.wer(ground_truth, script))
 
-    del img, full_img, paragraph, out
+    del paragraph, out
     torch.cuda.empty_cache()
     progress_bar.step()
 
