@@ -5,7 +5,7 @@ import cv2
 from e2e import e2e_postprocessing
 
 
-def get_lines(image_path, e2e, config, mode='hw', do_hw=True):
+def get_lines(image_path, e2e, config, mode='hw'):
     org_img = cv2.imread(image_path)
     # print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
     h, w = org_img.shape[:2]
@@ -44,12 +44,12 @@ def get_lines(image_path, e2e, config, mode='hw', do_hw=True):
     }
     try:
         with torch.no_grad():
-            out = e2e.forward(e2e_input, mode=mode, do_hw=do_hw)
+            out = e2e.forward(e2e_input, mode=mode)
     except RuntimeError as e:
         if 'CUDA out of memory' in str(e):
             e2e.to_cpu()
             with torch.no_grad():
-                out = e2e.forward(e2e_input, lf_batch_size=100, mode=mode, do_hw=do_hw)
+                out = e2e.forward(e2e_input, lf_batch_size=100, mode=mode)
             e2e.to_cuda()
         else:
             raise e

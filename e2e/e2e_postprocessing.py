@@ -63,6 +63,7 @@ def filter_on_pick(out, pick, pick_line_imgs=False):
     out['sol'] = out['sol'][pick]
     out['lf'] = [li[pick] for li in out['lf']]
     out['hw'] = out['hw'][pick]
+    out['line_imgs'] = out['line_imgs'][pick]
     if pick_line_imgs:
         out['line_imgs'] = out['line_imgs'][pick]
 
@@ -161,9 +162,9 @@ def results_to_numpy(out):
     return {
         "sol": out['sol'].data.cpu().numpy()[:, 0, :],
         "lf": [li.data.cpu().numpy() for li in out['lf']] if out['lf'] is not None else None,
-        "hw": out['hw'].data.cpu().numpy(),
+        "hw": out['hw'].data.cpu().numpy() if len(out['hw']) > 0 else None,
         "results_scale": out['results_scale'],
-        "line_imgs": out['line_imgs'],
+        "line_imgs": np.array(out['line_imgs']),
     }
 
 

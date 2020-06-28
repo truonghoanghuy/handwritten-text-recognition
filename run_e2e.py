@@ -88,7 +88,7 @@ for image_path in sorted(image_paths):
         ground_truth = u' '.join(f.readlines())
 
     org_img = cv2.imread(image_path)
-    out = get_lines(image_path, e2e, config, mode='hw_vn', do_hw=True)
+    out = get_lines(image_path, e2e, config, mode='hw_vn')
 
     paragraph = out['hw']
     if not use_best_path:

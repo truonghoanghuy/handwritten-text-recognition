@@ -6,7 +6,10 @@ import torch
 from torch.utils.data import Dataset
 
 from hw import grid_distortion
+from hw_vn.continuous_state import init_model
+from e2e.e2e_model import E2EModel
 from utils import string_utils, augmentation
+import line_extractor
 
 PADDING_CONSTANT = 0
 
@@ -50,7 +53,9 @@ def collate(batch):
 
 
 class HwDataset(Dataset):
-    def __init__(self, set_list, char_to_idx, augment=False, img_height=32, random_subset_size=None):
+    def __init__(self, set_list, char_to_idx, config, hw_model, augment=False, img_height=32,
+                 random_subset_size=None, paragraph=False):
+        hw_model = hw_model.split('.')[-1]
 
         self.img_height = img_height
 
@@ -67,6 +72,16 @@ class HwDataset(Dataset):
         # if self.augmentation:
         #     self.augmenter = augmentation.HwAugmenter()
 
+        model_mode = 'best_overall'
+        sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=model_mode,
+                                 use_cpu=False, hw_model=hw_model)
+
+        self.e2e = E2EModel(sol, lf, hw, use_cpu=False)
+        self.e2e.eval()
+
+        self.config = config
+        self.paragraph = paragraph
+
     def __len__(self):
         return len(self.ids)
 
@@ -75,21 +90,23 @@ class HwDataset(Dataset):
         gt = open(gt_path, encoding='utf8')
         if gt is None:
             return None
-
         img = cv2.imread(img_path)
+
+        if self.paragraph:
+            out = line_extractor.get_lines(img_path, self.e2e, self.config, mode='hw_vn')
+            paragraph = out['line_imgs']
+            img = np.concatenate(paragraph, axis=1)
 
         if img is None:
             return None
 
+        img = img.astype(np.uint8)
         if img.shape[0] != self.img_height:
             if img.shape[0] < self.img_height and not self.warning:
                 self.warning = True
                 print("WARNING: upsampling image to fit size")
             percent = float(self.img_height) / img.shape[0]
             img = cv2.resize(img, (0, 0), fx=percent, fy=percent, interpolation=cv2.INTER_CUBIC)
-
-        if img is None:
-            return None
 
         if self.augmentation:
             # img = self.augmenter(img)
