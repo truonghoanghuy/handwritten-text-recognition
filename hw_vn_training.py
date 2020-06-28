@@ -6,8 +6,9 @@ import torch
 import yaml
 from torch import nn
 from torch.utils.data import DataLoader
+import time
 
-from hw_vn import cnn_lstm_2_attentions
+from hw_vn import cnn_attention_lstm
 from hw_vn import hw_dataset
 from hw_vn import hw_loss_function
 from hw_vn import module_trainer
@@ -44,7 +45,7 @@ if __name__ == '__main__':
 
     dtype = torch.float32
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    hw = cnn_lstm_2_attentions.create_model(hw_network_config).to(device)
+    hw = cnn_attention_lstm.create_model(hw_network_config).to(device)
     optimizer = torch.optim.Adam(hw.parameters(), lr=train_config['hw']['learning_rate'])
     criterion = nn.CTCLoss(reduction='sum', zero_infinity=True)
 
@@ -60,4 +61,9 @@ if __name__ == '__main__':
     trainer = module_trainer.ModuleTrainer(hw, optimizer, calculate_hw_train_loss, calculate_hw_evaluate_loss,
                                            train_dataloader, eval_dataloader, checkpoint_file_path, model_file_path)
     resume = 'resume' in sys.argv
+
+    start_time = time.time()
     trainer.train(resume=resume)
+    diff = (time.time() - start_time) / 60
+    print('--------------------------------------------------------------------------------')
+    print('Total time for training: {} minutes'.format(diff))

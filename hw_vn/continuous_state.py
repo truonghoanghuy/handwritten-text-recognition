@@ -14,9 +14,17 @@ def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='be
     if hw_model == 'cnn_lstm':
         from hw_vn import cnn_lstm
         hwr_model = cnn_lstm
-    elif hw_model == 'cnn_lstm_1_attention':
-        from hw_vn import cnn_lstm_1_attention
-        hwr_model = cnn_lstm_1_attention
+    elif hw_model == 'cnn_lstm_attention':
+        from hw_vn import cnn_lstm_attention
+        hwr_model = cnn_lstm_attention
+    elif hw_model == 'cnn_attention_lstm_attention':
+        from hw_vn import cnn_attention_lstm_attention
+        hwr_model = cnn_attention_lstm_attention
+    elif hw_model == 'cnn_attention_lstm':
+        from hw_vn import cnn_attention_lstm
+        hwr_model = cnn_attention_lstm
+    else:
+        assert False, 'Can not find proper HWR model!'
 
     base_0 = config['network']['sol']['base0']
     base_1 = config['network']['sol']['base1']
