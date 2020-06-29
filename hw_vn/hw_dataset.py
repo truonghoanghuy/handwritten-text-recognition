@@ -53,7 +53,7 @@ def collate(batch):
 
 
 class HwDataset(Dataset):
-    def __init__(self, set_list, char_to_idx, config, hw_model, augment=False, img_height=32,
+    def __init__(self, set_list, char_to_idx, config, hw_model='cnn_attention_lstm', augment=False, img_height=32,
                  random_subset_size=None, paragraph=False):
         hw_model = hw_model.split('.')[-1]
 
@@ -96,11 +96,11 @@ class HwDataset(Dataset):
             out = line_extractor.get_lines(img_path, self.e2e, self.config, mode='hw_vn')
             paragraph = out['line_imgs']
             img = np.concatenate(paragraph, axis=1)
+            img = img.astype(np.uint8)
 
         if img is None:
             return None
 
-        img = img.astype(np.uint8)
         if img.shape[0] != self.img_height:
             if img.shape[0] < self.img_height and not self.warning:
                 self.warning = True

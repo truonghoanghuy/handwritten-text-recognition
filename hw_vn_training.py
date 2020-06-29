@@ -27,6 +27,7 @@ if __name__ == '__main__':
     with open('e2e_config.yaml') as f:
         e2e_config = yaml.load(f)
 
+    assert sys.argv[2] in ['paragraph', 'line'], 'Second parameter is incorrect!'
     paragraph = sys.argv[2] == 'paragraph'  # line or paragraph
 
     hw_network_config = config['network']['hw']
@@ -37,24 +38,24 @@ if __name__ == '__main__':
     train_config = config['training']
     batches_per_epoch = int(train_config['hw']['images_per_epoch'] / train_config['hw']['batch_size'])
     checkpoint_file_path = os.path.join(train_config['snapshot']['best_validation'], 'hw_vn_checkpoint.pt')
-    if not os.path.exists(checkpoint_file_path):
-        os.mkdir(checkpoint_file_path)
+    if not os.path.exists(train_config['snapshot']['best_validation']):
+        os.mkdir(train_config['snapshot']['best_validation'])
     model_file_path = os.path.join(train_config['snapshot']['best_overall'], 'hw_vn.pt')
-    if not os.path.exists(model_file_path):
-        os.mkdir(model_file_path)
+    if not os.path.exists(train_config['snapshot']['best_overall']):
+        os.mkdir(train_config['snapshot']['best_overall'])
 
     train_set_list = load_file_list(train_config['training_set'])
     train_dataset = HwDataset(train_set_list, char_set['char_to_idx'], augment=True,
                               img_height=hw_network_config['input_height'],
-                              config=e2e_config, hw_model=cnn_attention_lstm.__name__, paragraph=paragraph)
+                              config=e2e_config, paragraph=paragraph)
     train_dataloader = DataLoader(train_dataset, batch_size=train_config['hw']['batch_size'], shuffle=False,
                                   num_workers=0, collate_fn=hw_dataset.collate)
     train_dataloader = DatasetWrapper(train_dataloader, batches_per_epoch)
 
     eval_set_list = load_file_list(train_config['validation_set'])
-    eval_dataset = HwDataset(eval_set_list, char_set['char_to_idx'],img_height=hw_network_config['input_height'],
+    eval_dataset = HwDataset(eval_set_list, char_set['char_to_idx'], img_height=hw_network_config['input_height'],
                              random_subset_size=train_config['hw']['validation_subset_size'],
-                             config=e2e_config, hw_model=cnn_attention_lstm.__name__, paragraph=paragraph)
+                             config=e2e_config, paragraph=paragraph)
     eval_dataloader = DataLoader(eval_dataset, batch_size=train_config['hw']['batch_size'], shuffle=False,
                                  num_workers=0, collate_fn=hw_dataset.collate)
 
