@@ -95,7 +95,11 @@ class HwDataset(Dataset):
         if self.paragraph:
             out = line_extractor.get_lines(img_path, self.e2e, self.config, mode='hw_vn')
             paragraph = out['line_imgs']
-            img = np.concatenate(paragraph, axis=1)
+            try:
+                img = np.concatenate(paragraph, axis=1)
+            except Exception as e:
+                print('Can not get line of this image: {}'.format(img_path))
+                return None
             img = img.astype(np.uint8)
 
         if img is None:

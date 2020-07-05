@@ -10,17 +10,17 @@ training:
   training_set:
     img_folder: ""
     json_folder: ""
-    file_list: "data/hw_vn_training_set.json"
+    file_list: "data/test_train.json"
 
   validation_set:
     img_folder: ""
     json_folder: ""
-    file_list: "data/hw_vn_validation_set.json"
+    file_list: "data/test_validation.json"
 
   hw:
     learning_rate: 0.0002 # PyYAML bug: no scientific notation
     batch_size: 4
-    images_per_epoch: 10000 # batches
+    images_per_epoch: 8 # batches
     validation_subset_size: 2000 # images
 
   alignment:
