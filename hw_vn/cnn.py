@@ -35,6 +35,8 @@ class CNN(nn.Module):
         cnn.add_module(f'pooling{3}', nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 512x2x16
         conv_relu(6, batch_normalization=True)  # 512x1x16
 
+        self.cnn = cnn
+
     def forward(self, input: Tensor):
         conv = self.cnn(input.contiguous())
         b, c, h, w = conv.size()
