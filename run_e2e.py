@@ -87,10 +87,9 @@ if __name__ == '__main__':
         h, w = org_img.shape[:2]
         processed = org_img
 
-        target_height = 512
-        scale = target_height / float(w + w / 3)
-        pad_top = pad_bottom = 128 + w // 6
-        pad_left = pad_right = 128 + w // 6
+        scale = 512 / float(w + 0)
+        pad_top = pad_bottom = 128 + 0
+        pad_left = pad_right = 128 + 0
         pad_values = [np.argmax(cv2.calcHist([processed], channels=[x], mask=None, histSize=[256], ranges=[0, 256]))
                       for x in range(3)]  # pad the mode value for each color channel
         padded_img = np.dstack([np.pad(processed[:, :, x], ((pad_top, pad_bottom), (pad_left, pad_right)),
