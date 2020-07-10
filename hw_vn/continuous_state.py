@@ -1,5 +1,6 @@
 import os
 import torch
+import copy
 
 from lf.line_follower import LineFollower
 from sol.start_of_line_finder import StartOfLineFinder
@@ -68,6 +69,14 @@ def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='be
     if only_load is None or only_load == 'hw' or 'hw' in only_load:
         hw = hwr_model.create_model(config['network']['hw'])
         hw_state = safe_load.torch_state(os.path.join(config['training']['snapshot'][hw_dir], 'hw.pt'))
+
+        keys = list(hw_state.keys())
+        for name in keys:
+            if name.startswith('cnn'):
+                new_name = 'cnn.' + name  # cnn.conv0 -> cnn.cnn.conv0
+                hw_state[new_name] = copy.deepcopy(hw_state[name])
+                del hw_state[name]
+
         hw.load_state_dict(hw_state)
         hw = hw.to(device)
 

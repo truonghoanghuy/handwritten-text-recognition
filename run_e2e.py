@@ -70,9 +70,6 @@ sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=m
 e2e = E2EModel(sol, lf, hw, use_cpu=use_cpu)
 e2e.eval()
 
-alpha = 2
-beta = 1
-
 if scoring:
     cer = []
     wer = []
