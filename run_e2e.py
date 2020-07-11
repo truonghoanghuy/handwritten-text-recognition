@@ -20,7 +20,7 @@ parser.add_argument('--config', default='e2e_config.yaml', type=str, help='The Y
 parser.add_argument('--input', default='data/InkData_paragraph_processed/test', type=str,
                     help='Path to the input directory.')
 parser.add_argument('--output', default='data/output', type=str, help='Path to the output directory.')
-parser.add_argument('--model', default='cnn_lstm_1_attention', help='HWR model used')
+parser.add_argument('--model', default='cnn_attention_lstm', help='HWR model used')
 parser.add_argument('--best_path', action='store_true',
                     help='Use best path decoding, default is using beam search decoding with language model.')
 parser.add_argument('--combine', action='store_true',
@@ -69,9 +69,6 @@ sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=m
 
 e2e = E2EModel(sol, lf, hw, use_cpu=use_cpu)
 e2e.eval()
-
-alpha = 2
-beta = 1
 
 if scoring:
     cer = []

@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+from hw import grid_distortion
 from utils import string_utils, augmentation
 
 PADDING_CONSTANT = 0
@@ -92,6 +93,9 @@ class HwDataset(Dataset):
 
         if self.augmentation:
             img = self.augmenter(img)
+            # img = augmentation.apply_random_color_rotation(img)
+            # img = augmentation.apply_tensmeyer_brightness(img)
+            # img = grid_distortion.warp_image(img)
 
         img = img.astype(np.float32)
         img = img / 128.0 - 1.0
