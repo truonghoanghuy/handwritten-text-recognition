@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', default='e2e_config.yaml', type=str, help='The YAML configuration file.')
     parser.add_argument('--input', default='data/input', type=str, help='Path to the input directory.')
     parser.add_argument('--output', default='data/output', type=str, help='Path to the output directory.')
-    parser.add_argument('--model', default='cnn_lstm_1_attention', help='HWR model used')
+    parser.add_argument('--model', default='cnn_attention_lstm', help='HWR model used')
     parser.add_argument('--best_path', action='store_true',
                         help='Use best path decoding. '
                              'Default is using beam search decoding with language model.')
@@ -69,9 +69,6 @@ if __name__ == '__main__':
     if use_cpu:
         e2e.to_cpu()
     e2e.eval()
-
-    alpha = 2
-    beta = 1
 
     cer = []
     wer = []

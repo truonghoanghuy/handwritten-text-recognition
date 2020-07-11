@@ -1,5 +1,6 @@
 import os
 import torch
+import copy
 
 from lf.line_follower import LineFollower
 from sol.start_of_line_finder import StartOfLineFinder
@@ -14,9 +15,17 @@ def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='be
     if hw_model == 'cnn_lstm':
         from hw_vn import cnn_lstm
         hwr_model = cnn_lstm
-    elif hw_model == 'cnn_lstm_1_attention':
-        from hw_vn import cnn_lstm_1_attention
-        hwr_model = cnn_lstm_1_attention
+    elif hw_model == 'cnn_lstm_attention':
+        from hw_vn import cnn_lstm_attention
+        hwr_model = cnn_lstm_attention
+    elif hw_model == 'cnn_attention_lstm_attention':
+        from hw_vn import cnn_attention_lstm_attention
+        hwr_model = cnn_attention_lstm_attention
+    elif hw_model == 'cnn_attention_lstm':
+        from hw_vn import cnn_attention_lstm
+        hwr_model = cnn_attention_lstm
+    else:
+        assert False, 'Can not find proper HWR model!'
 
     base_0 = config['network']['sol']['base0']
     base_1 = config['network']['sol']['base1']
@@ -60,6 +69,14 @@ def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='be
     if only_load is None or only_load == 'hw' or 'hw' in only_load:
         hw = hwr_model.create_model(config['network']['hw'])
         hw_state = safe_load.torch_state(os.path.join(config['training']['snapshot'][hw_dir], 'hw.pt'))
+
+        keys = list(hw_state.keys())
+        for name in keys:
+            if name.startswith('cnn'):
+                new_name = 'cnn.' + name  # cnn.conv0 -> cnn.cnn.conv0
+                hw_state[new_name] = copy.deepcopy(hw_state[name])
+                del hw_state[name]
+
         hw.load_state_dict(hw_state)
         hw = hw.to(device)
 
