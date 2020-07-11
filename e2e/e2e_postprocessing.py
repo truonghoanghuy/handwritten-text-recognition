@@ -47,6 +47,9 @@ def trim_ends(out):
     selected = hw.argmax(axis=-1)
     beginning = np.argmax(selected != 0, axis=1)
     ending = selected.shape[1] - 1 - np.argmax(selected[:, ::-1] != 0, axis=1)
+    for i in range(out['hw_vn'].shape[0]):
+        out['hw_vn'][i, :beginning[i], :] = 0
+        out['hw_vn'][i, ending[i] + 1:, :] = 0
 
     beginning_percent = (beginning + 0.5) / float(selected.shape[1])
     ending_percent = (ending + 0.5) / float(selected.shape[1])
@@ -63,6 +66,7 @@ def filter_on_pick(out, pick, pick_line_imgs=False):
     out['sol'] = out['sol'][pick]
     out['lf'] = [li[pick] for li in out['lf']]
     out['hw'] = out['hw'][pick]
+    out['hw_vn'] = out['hw_vn'][pick]
     if pick_line_imgs:
         out['line_imgs'] = out['line_imgs'][pick]
 
@@ -162,6 +166,7 @@ def results_to_numpy(out):
         "sol": out['sol'].data.cpu().numpy()[:, 0, :],
         "lf": [li.data.cpu().numpy() for li in out['lf']] if out['lf'] is not None else None,
         "hw": out['hw'].data.cpu().numpy(),
+        "hw_vn": out['hw_vn'].data.cpu().numpy(),
         "results_scale": out['results_scale'],
         "line_imgs": out['line_imgs'],
     }

@@ -6,13 +6,14 @@ from torch import nn
 
 
 class E2EModel(nn.Module):
-    def __init__(self, sol, lf, hw, dtype=torch.float32, use_cpu=False):
+    def __init__(self, sol, lf, hw, hw_vn=None, dtype=torch.float32, use_cpu=False):
         super().__init__()
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.dtype = dtype
         self.sol = sol
         self.lf = lf
         self.hw = hw
+        self.hw_vn = hw_vn if hw_vn else hw
         if not use_cpu:
             self.to_cuda()
         else:
@@ -23,22 +24,26 @@ class E2EModel(nn.Module):
         self.sol = self.sol.to(self.device)
         self.lf = self.lf.to(self.device)
         self.hw = self.hw.to(self.device)
+        self.hw_vn = self.hw_vn.to(self.device)
 
     def to_cpu(self):
         self.device = torch.device('cpu')
         self.sol = self.sol.to(self.device)
         self.lf = self.lf.to(self.device)
         self.hw = self.hw.to(self.device)
+        self.hw_vn = self.hw_vn.to(self.device)
 
     def train(self, mode=True):
         self.sol.train(mode)
         self.lf.train(mode)
         self.hw.train(mode)
+        self.hw_vn.train(mode)
 
     def eval(self):
         self.sol.eval()
         self.lf.eval()
         self.hw.eval()
+        self.hw_vn.eval()
 
     def forward(self, x, use_full_img=True, sol_threshold=0.1, lf_batch_size=10, mode='hw'):
         resized_img: torch.Tensor = x['resized_img']
@@ -79,8 +84,8 @@ class E2EModel(nn.Module):
         for s in range(0, positions.size(0), lf_batch_size):
             torch.cuda.empty_cache()
             sol_batch = positions[s:s + lf_batch_size, 0, :]
-            _, C, H, W = full_img.size()
-            batch_image = full_img.expand(sol_batch.size(0), C, H, W)
+            _, c, h, w = full_img.size()
+            batch_image = full_img.expand(sol_batch.size(0), c, h, w)
 
             steps = 5
             extra_backward = 1
@@ -114,10 +119,11 @@ class E2EModel(nn.Module):
 
         # pad constant to have the same width on every line images
         hw_out = []
-        maxW = max([line_batch.size(3) for line_batch in line_batches])
+        hw_vn_out = []
+        max_w = max([line_batch.size(3) for line_batch in line_batches])
         for line_batch in line_batches:
-            N, C, H, W = line_batch.size()
-            padded = torch.zeros(N, C, H, maxW - W, dtype=self.dtype, device=self.device)
+            b, c, h, w = line_batch.size()
+            padded = torch.zeros(b, c, h, max_w - w, dtype=self.dtype, device=self.device)
             line_batch = torch.cat([line_batch, padded], dim=3)
             for line in line_batch:
                 line = line.transpose(0, 1).transpose(1, 2)  # (C, H, W) -> (H, W, C)
@@ -125,12 +131,16 @@ class E2EModel(nn.Module):
                 line_np = line.data.cpu().numpy()
                 line_images.append(line_np)
             if mode == 'hw':
-                hw_pred = self.hw(line_batch)
+                hw_vn_pred = self.hw_vn(line_batch)
             else:
-                hw_pred = self.hw(line_batch, x['len_label'])
+                hw_vn_pred = self.hw_vn(line_batch, x['len_label'])
+            hw_pred = self.hw(line_batch)
             hw_out.append(hw_pred)
+            hw_vn_out.append(hw_vn_pred)
         hw_out = torch.cat(hw_out, dim=1)
         hw_out = hw_out.transpose(0, 1)
+        hw_vn_out = torch.cat(hw_vn_out, dim=1)
+        hw_vn_out = hw_vn_out.transpose(0, 1)
 
         # import cv2
         # for i, image in enumerate(line_images):
@@ -140,6 +150,7 @@ class E2EModel(nn.Module):
             'sol': positions,
             'lf': lf_xy_positions,
             'hw': hw_out,
+            'hw_vn': hw_vn_out,
             'results_scale': results_scale,
             'line_imgs': line_images
         }
