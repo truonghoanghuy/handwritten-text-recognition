@@ -11,8 +11,9 @@ import yaml
 
 from e2e import e2e_postprocessing, visualization
 from e2e.e2e_model import E2EModel
+from hw import cnn_lstm
 from hw_vn.continuous_state import init_model
-from utils import error_rates, string_utils
+from utils import error_rates, string_utils, safe_load
 from utils.paragraph_processing import softmax, combine_lines_into_paragraph
 from utils.printer import ProgressBarPrinter
 
@@ -65,7 +66,10 @@ if __name__ == '__main__':
     char_to_idx = char_set['char_to_idx']
 
     sol, lf, hw = init_model(config, use_cpu=use_cpu, hw_model=hw_model)
-    e2e = E2EModel(sol, lf, hw)
+    hw_german = cnn_lstm.create_model(config['network']['hw_german'])
+    hw_german_state = safe_load.torch_state(os.path.join('data', 'snapshots', 'best_overall', 'hw.pt'))
+    hw_german.load_state_dict(hw_german_state)
+    e2e = E2EModel(sol, lf, hw_german, hw)
     if use_cpu:
         e2e.to_cpu()
     e2e.eval()
@@ -152,7 +156,7 @@ if __name__ == '__main__':
                                              })
         order = e2e_postprocessing.read_order(out)
         e2e_postprocessing.filter_on_pick(out, order)
-        paragraph = out['hw']
+        paragraph = out['hw_vn']
 
         if not use_best_path:
             for v in range(len(paragraph)):
