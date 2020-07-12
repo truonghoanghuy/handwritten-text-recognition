@@ -22,9 +22,9 @@ def predict():
             ret['status'] = 'Fail'
         else:
             ret['status'] = 'Ok'
-        ret['num_lines'] = len(transcripts)
-        for i in range(len(transcripts)):
-            ret[str(i + 1)] = transcripts[i]
+            ret['num_lines'] = len(transcripts)
+            for i in range(len(transcripts)):
+                ret[str(i + 1)] = transcripts[i]
 
         return jsonify(ret)
 

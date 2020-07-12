@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     sol, lf, hw = init_model(config, use_cpu=use_cpu, hw_model=hw_model)
     hw_german = cnn_lstm.create_model(config['network']['hw_german'])
-    hw_german_state = safe_load.torch_state(os.path.join('model', 'best_overall', 'hw_german.pt'))
+    hw_german_state = safe_load.torch_state(os.path.join('models', 'best_overall', 'hw_german.pt'))
     hw_german.load_state_dict(hw_german_state)
     e2e = E2EModel(sol, lf, hw_german, hw)
     if use_cpu:
