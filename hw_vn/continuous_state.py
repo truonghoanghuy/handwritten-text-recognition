@@ -72,7 +72,7 @@ def init_model(config, sol_dir='best_overall', lf_dir='best_overall', hw_dir='be
 
         keys = list(hw_state.keys())
         for name in keys:
-            if name.startswith('cnn'):
+            if 'cnn.cnn' not in name and name.startswith('cnn'):
                 new_name = 'cnn.' + name  # cnn.conv0 -> cnn.cnn.conv0
                 hw_state[new_name] = copy.deepcopy(hw_state[name])
                 del hw_state[name]
