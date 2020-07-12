@@ -20,7 +20,8 @@ from utils.printer import ProgressBarPrinter
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='e2e_config.yaml', type=str, help='The YAML configuration file.')
-    parser.add_argument('--input', default='data/input', type=str, help='Path to the input directory.')
+    parser.add_argument('--input', default='data/InkData_paragraph_processed/test', type=str,
+                        help='Path to the input directory.')
     parser.add_argument('--output', default='data/output', type=str, help='Path to the output directory.')
     parser.add_argument('--model', default='cnn_attention_lstm', help='HWR model used')
     parser.add_argument('--best_path', action='store_true',
@@ -32,6 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--cpu', action='store_true', help='Force CPU. Default is trying to use GPU if possible.')
     parser.add_argument('--scoring', action='store_true', help='Scoring prediction by CER and WER')
     parser.add_argument('--verbose', action='store_true', help='Export line images and show padded image.')
+    parser.add_argument('--no_output', action='store_true', help='No output files.')
 
     args = parser.parse_args()
     config_path = args.config
@@ -43,6 +45,7 @@ if __name__ == '__main__':
     scoring = args.scoring
     verbose = args.verbose
     hw_model = args.model
+    no_output = args.no_output
     mode = 'hw_vn'
 
     with open(config_path) as f:
@@ -67,7 +70,7 @@ if __name__ == '__main__':
 
     sol, lf, hw = init_model(config, use_cpu=use_cpu, hw_model=hw_model)
     hw_german = cnn_lstm.create_model(config['network']['hw_german'])
-    hw_german_state = safe_load.torch_state(os.path.join('data', 'snapshots', 'best_overall', 'hw.pt'))
+    hw_german_state = safe_load.torch_state(os.path.join('model', 'best_overall', 'hw_german.pt'))
     hw_german.load_state_dict(hw_german_state)
     e2e = E2EModel(sol, lf, hw_german, hw)
     if use_cpu:
@@ -189,16 +192,17 @@ if __name__ == '__main__':
                     res = beam_search_with_lm(line)
                     output_strings.append(res)
 
-        draw_img = visualization.draw_output(out, padded_img if verbose else org_img)
-        out_basename = os.path.basename(os.path.normpath(image_path))
-        out_fullname = os.path.join(output_directory, out_basename)
-        cv2.imwrite(out_fullname, draw_img)
-        if verbose:
-            out_dir_name = out_fullname.rsplit('.')[0]
-            os.makedirs(out_dir_name, exist_ok=True)
-            for img_index in out['idx']:
-                line_name = os.path.join(out_dir_name, f'{img_index}.png')
-                cv2.imwrite(line_name, out['line_imgs'][img_index])
+        if not no_output:
+            draw_img = visualization.draw_output(out, padded_img if verbose else org_img)
+            out_basename = os.path.basename(os.path.normpath(image_path))
+            out_fullname = os.path.join(output_directory, out_basename)
+            cv2.imwrite(out_fullname, draw_img)
+            if verbose:
+                out_dir_name = out_fullname.rsplit('.')[0]
+                os.makedirs(out_dir_name, exist_ok=True)
+                for img_index in out['idx']:
+                    line_name = os.path.join(out_dir_name, f'{img_index}.png')
+                    cv2.imwrite(line_name, out['line_imgs'][img_index])
 
         # Save results
         label_string = '_'
