@@ -14,7 +14,9 @@ augmenter = augmentation.HwAugmenter()
 
 for root, _, files in os.walk(input_dir):
     for file in files:
-        file_name = file.split('.')[0]
+        file_name, file_extension = file.split('.')
+        if file_extension == 'txt':
+            continue
         img = cv2.imread(os.path.join(root, file))
         img = augmenter(img)
         cv2.imwrite(os.path.join(output_dir, file), img)
