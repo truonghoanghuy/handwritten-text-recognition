@@ -29,6 +29,7 @@ hw_german_state = safe_load.torch_state(os.path.join('model', 'best_overall', 'h
 hw_german.load_state_dict(hw_german_state)
 e2e = E2EModel(sol, lf, hw_german, hw)
 e2e.eval()
+mode = 'hw_vn'
 
 
 def get_transcript(org_img):
