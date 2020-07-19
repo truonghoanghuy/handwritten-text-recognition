@@ -81,10 +81,6 @@ for image_path in sorted(image_paths):
     org_img = cv2.imread(image_path)
     # print(image_path, org_img.shape if isinstance(org_img, np.ndarray) else None)
 
-    txt_path = image_path.split('.')[0] + '.txt'
-    label = open(txt_path, encoding='utf8').read()
-    len_label = torch.tensor([len(label)])
-
     target_dim1 = 512
     s = target_dim1 / float(org_img.shape[1])
 
@@ -110,7 +106,7 @@ for image_path in sorted(image_paths):
         'resized_img': img,
         'full_img': full_img,
         'resize_scale': 1.0 / s,
-        'len_label': len_label,
+        'len_label': torch.tensor([0]),
     }
     try:
         with torch.no_grad():

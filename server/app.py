@@ -19,15 +19,15 @@ def predict():
 
         ret = {}
         if transcripts is None:
-            ret['status'] = 'Fail'
+            ret['status'] = 'fail'
         else:
-            ret['status'] = 'Ok'
-        ret['num_lines'] = len(transcripts)
-        for i in range(len(transcripts)):
-            ret[str(i + 1)] = transcripts[i]
+            ret['status'] = 'ok'
+            ret['num_lines'] = len(transcripts)
+            for i in range(len(transcripts)):
+                ret[str(i + 1)] = transcripts[i]
 
         return jsonify(ret)
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', port=5000)

@@ -132,9 +132,6 @@ class E2EModel(nn.Module):
         hw_out = torch.cat(hw_out, dim=1)
         hw_out = hw_out.transpose(0, 1)
 
-        # import cv2
-        # for i, image in enumerate(line_images):
-        #     cv2.imwrite(f'debug/line_image_{i}.png', image)
         return {
             'original_sol': original_starts,
             'sol': positions,

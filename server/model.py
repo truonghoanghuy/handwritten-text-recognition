@@ -21,7 +21,7 @@ idx_to_char = {int(k): v for k, v in char_set['idx_to_char'].items()}
 char_to_idx = char_set['char_to_idx']
 
 model_mode = 'best_overall'
-hw_model = 'cnn_lstm'
+hw_model = 'cnn_attention_lstm'
 mode = 'hw_vn'
 sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=model_mode,
                          use_cpu=False, hw_model=hw_model)
@@ -56,7 +56,7 @@ def get_transcript(org_img):
         'resized_img': img,
         'full_img': full_img,
         'resize_scale': 1.0 / s,
-        'len_label': None,
+        'len_label': torch.tensor([0]),
     }
     try:
         with torch.no_grad():

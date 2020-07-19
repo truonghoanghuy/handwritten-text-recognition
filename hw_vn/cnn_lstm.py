@@ -12,7 +12,7 @@ class CRNN(nn.Module):
         self.rnn = BidirectionalLSTM(cnn_out_size, hidden_size, num_class)
         self.softmax = nn.LogSoftmax()
 
-    def forward(self, input: Tensor, len_label):
+    def forward(self, input: Tensor, len_label=None):
         # conv features
         conv = self.cnn(input.contiguous())
         conv = conv.permute(2, 0, 1)  # [w, b, c * h]
