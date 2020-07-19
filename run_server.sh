@@ -1,1 +1,1 @@
-FLASK_ENV=production FLASK_APP=server/app.py flask run
+FLASK_ENV=production FLASK_APP=server/app.py flask run --host=0.0.0.0 --port=5000
