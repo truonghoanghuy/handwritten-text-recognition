@@ -12,10 +12,9 @@ app = Flask(__name__)
 @app.route('/predict', methods=['POST'])
 def predict():
     if request.method == 'POST':
-        img_bytes = request.files['img']
-        img_bytes = img_bytes.read()
-        img_bytes = base64.b64decode(img_bytes)
-        nparr = np.fromstring(img_bytes, np.uint8)
+        img_str = request.json['img']
+        img_str = base64.b64decode(img_str)
+        nparr = np.fromstring(img_str, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         transcripts = get_transcript(img)
 
