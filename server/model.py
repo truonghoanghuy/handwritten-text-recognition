@@ -3,8 +3,9 @@ import json
 import numpy as np
 import torch
 import cv2
+import os
 
-from e2e import e2e_postprocessing
+from e2e import e2e_postprocessing, visualization
 from e2e.e2e_model import E2EModel
 from utils.paragraph_processing import softmax
 from hw_vn.continuous_state import init_model
@@ -28,6 +29,11 @@ sol, lf, hw = init_model(config, sol_dir=model_mode, lf_dir=model_mode, hw_dir=m
 
 e2e = E2EModel(sol, lf, hw, use_cpu=False)
 e2e.eval()
+
+no_output = False
+output_dir = 'output'
+os.makedirs(output_dir, exist_ok=True)
+out_image_name = 'output.png'
 
 
 def get_transcript(org_img):
@@ -106,4 +112,17 @@ def get_transcript(org_img):
 
     # param = {'hw': np.array(paragraph)}
     # output_strings, _ = e2e_postprocessing.decode_handwriting(param, idx_to_char)
+
+    # Save results
+    if not no_output:
+        draw_img = visualization.draw_output(out, org_img)
+        cv2.imwrite(os.path.join(output_dir, out_image_name), draw_img)
+
+        label_string = "_"
+        label_string += 'beam_search_lm'
+        file_path = os.path.join(output_dir, out_image_name.split('.')[0]) + label_string + ".txt"
+
+        with open(file_path, 'w', encoding='utf8') as f:
+            f.write(u'\n'.join(output_strings))
+
     return output_strings
